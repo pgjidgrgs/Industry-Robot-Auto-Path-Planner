@@ -2,13 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Tecnomatix.Engineering;
-using static System.Net.Mime.MediaTypeNames;
 
 
 namespace rrtRobot
@@ -24,7 +19,7 @@ namespace rrtRobot
 
         public double Gun_Open { get; set; }
 
-        public point(double X, double Y, double Z,double RX, double RY, double RZ,double Gun_Opening)
+        public point(double X, double Y, double Z, double RX, double RY, double RZ, double Gun_Opening)
         {
             x = X;
             y = Y;
@@ -44,7 +39,7 @@ namespace rrtRobot
         public double cost;
         public Node3D_star parent;
 
-       
+
     }
     public class Node3D
     {
@@ -57,7 +52,7 @@ namespace rrtRobot
         public double cost;
         public Node3D parent;
 
-       public Node3D(double X, double Y, double Z, double RX, double RY, double RZ)
+        public Node3D(double X, double Y, double Z, double RX, double RY, double RZ)
         {
             this.x = X;
             this.y = Y;
@@ -72,12 +67,13 @@ namespace rrtRobot
 
 
     public partial class TxRobotRRTConnect : TxrrtRobotPathPlannerForm
-    { 
+    {
         private int connected = 0;
         private int state = 1;
         private int sub_state = 0;
-        private double Start_step_size = 10.0;
-        private double End_step_size = 10.0;
+        private double Start_step_size = 5.0;
+        private double End_step_size = 5.0;
+        private double original_step_size = 5.0;
         private double circle_radius_1 = 20.0;
         private List<double> rotateStepSizefromStarttoEnd = new List<double>();
         private List<double> rotateStepSizefromEndtoStart = new List<double>();
@@ -106,30 +102,39 @@ namespace rrtRobot
             string loc = "";
             List<double> temdistoAix = new List<double>() { distoAix[0], distoAix[1], distoAix[2] };
             temdistoAix.Sort(); // 将数值进行排序
-           int  indexMin = distoAix.IndexOf(temdistoAix[0]);
+            int indexMin = distoAix.IndexOf(temdistoAix[0]);
 
-           int  indexSecondMin = distoAix.IndexOf(temdistoAix[1]);
+            int indexSecondMin = distoAix.IndexOf(temdistoAix[1]);
 
 
             if (indexMin == 0) loc = "X";
             else if (indexMin == 1) loc = "Y";
             else loc = "Z";
 
-            sw.WriteLine(DateTime.Now.ToLocalTime().ToString() + " " +"bypass points" + ": " + p.x.ToString() + " "
+            sw.WriteLine(DateTime.Now.ToLocalTime().ToString() + " " + "bypass points" + ": " + p.x.ToString() + " "
             + p.y.ToString() + " "
             + p.z.ToString() + " "
             + (p.rx * 180 / M_PI).ToString() + " "
             + (p.ry * 180 / M_PI).ToString() + " "
             + (p.rz * 180 / M_PI).ToString() + " "
             + (p.Gun_Open).ToString() + " "
-            + "Moved direction:  "+loc);
+            + "Moved direction:  " + loc);
 
             sw.Close();
         }
+
+        private void logpathGenerateGun_openIssueReturned()
+        {
+            StreamWriter sw = new StreamWriter(TxrrtRobotPathPlannerForm.LogfilePath, true);
+            sw.WriteLine(DateTime.Now.ToLocalTime().ToString() + " Gun_Open Conflict Issue Returned");
+            sw.Close();
+
+        }
+
         private void logpathGenerateOK()
         {
             StreamWriter sw = new StreamWriter(TxrrtRobotPathPlannerForm.LogfilePath, true);
-            sw.WriteLine(DateTime.Now.ToLocalTime().ToString() +" Path Generated!");
+            sw.WriteLine(DateTime.Now.ToLocalTime().ToString() + " Path Generated!");
             sw.Close();
 
         }
@@ -142,7 +147,7 @@ namespace rrtRobot
         }
         public int Nearest_Node(Node3D_star rand)
         {
-            double min =Double.MaxValue;
+            double min = Double.MaxValue;
             int index = -1;
 
             if (state == 1)
@@ -179,8 +184,8 @@ namespace rrtRobot
 
             return index;
         }
-       
-        public point step_func(point near, point rand, double size_step,bool start2end)
+
+        public point step_func(point near, point rand, double size_step, bool start2end)
         {
 
             /*
@@ -195,6 +200,18 @@ namespace rrtRobot
             *     当然也可以更大，这样运算的时间可能缩短，但轨迹的波动很大；
             *     这里是轨迹算法优化的一个点；
             * 4). 轨迹点还有一个参数就是gun的打开角度，这里直接调用rand点里面的open角度
+            * 
+            * 
+            * step_func() will generate step node point according the input near node point and the rand node point, if the setp node generated is validated, then it will 
+            * add into the startNode and endNode list;
+            * There are totally 7 parameters need to be generated in step node point:
+            *  1). For X/Y/Z will be generated according rand node and near node distance;
+            *  2). for rx/ry/rz will be generated according to the rand_rx. rand_ry, rand_rz, 
+            *      rand_rz will be generated from -45 deg to 45 deg;
+            *      rand_ry and rand_rx will be generated from -10 deg to 10 deg to avoid the robot posture changed randomly
+            *  3) The rand_rx, rand_ry, rand_rz will be added into the rotation step size for calculation;
+            *     rotateStepSizefromStarttoEnd is recorded the step rotation size from start node to end node, and after 30 times rotate the step_node will be same direction with end node
+            *  4) Gun_open data will be directly take Rand point gun open data;
             */
             double dx = rand.x - near.x;
             double dy = rand.y - near.y;
@@ -202,25 +219,25 @@ namespace rrtRobot
             double d = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2) + Math.Pow(dz, 2));
 
             //获取从near点到rand点的各个方向总角度的转动值；
-            double rx_rand = -Math.PI / 18 + rd.NextDouble() * (2 * Math.PI  / 18);
-            double ry_rand = -Math.PI / 18 + rd.NextDouble() * (2 * Math.PI  / 18);
+            double rx_rand = -Math.PI / 18 + rd.NextDouble() * (2 * Math.PI / 18);
+            double ry_rand = -Math.PI / 18 + rd.NextDouble() * (2 * Math.PI / 18);
             double rz_rand = -Math.PI / 4 + rd.NextDouble() * (2 * Math.PI / 4);
 
             point step;
             List<double> resultendVEC = new List<double>();
             if (start2end) // 表示从start 点向end点转动移动
             {
-               
+
                 if (start_nodes.Count > 30)
-                    resultendVEC= getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rz_rand });
 
                 if (start_nodes.Count <= 10)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rotateStepSizefromStarttoEnd[2]/10+ rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rotateStepSizefromStarttoEnd[2] / 10 + rz_rand });
 
                 if (start_nodes.Count > 10 && start_nodes.Count <= 20)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand,  rotateStepSizefromStarttoEnd[1] / 10+ ry_rand, rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, rotateStepSizefromStarttoEnd[1] / 10 + ry_rand, rz_rand });
                 if (start_nodes.Count > 20 && start_nodes.Count <= 30)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> {  rotateStepSizefromStarttoEnd[0] / 10+ rx_rand, ry_rand, rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rotateStepSizefromStarttoEnd[0] / 10 + rx_rand, ry_rand, rz_rand });
 
             }
 
@@ -230,12 +247,12 @@ namespace rrtRobot
                     resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rz_rand });
 
                 if (end_nodes.Count <= 10)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rotateStepSizefromEndtoStart[2] / 10+ rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, ry_rand, rotateStepSizefromEndtoStart[2] / 10 + rz_rand });
 
                 if (end_nodes.Count > 10 && end_nodes.Count <= 20)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, rotateStepSizefromEndtoStart[1] / 10+ ry_rand, rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rx_rand, rotateStepSizefromEndtoStart[1] / 10 + ry_rand, rz_rand });
                 if (end_nodes.Count > 20 && end_nodes.Count <= 30)
-                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rotateStepSizefromEndtoStart[0] / 10+ rx_rand, ry_rand, rz_rand });
+                    resultendVEC = getLocVectorafterRotateDeg(near, new List<double> { rotateStepSizefromEndtoStart[0] / 10 + rx_rand, ry_rand, rz_rand });
 
             }
 
@@ -257,13 +274,13 @@ namespace rrtRobot
              * 如果有一个干涉，则判断机器人从near 到step是穿越障碍物的，返回为false;
              */
             //List<point> truePath = new List<point>();
-           point p = new point(0, 0, 0, 0, 0, 0, 0);
-            if (!collisioncheckforSinglePoint(step))
-                    return false;
-
-            if (!isValidforstepCorss(step,near,out p))
+            point p = new point(0, 0, 0, 0, 0, 0, 0);
+            if (!collisioncheckforSinglePoint(ref step))
                 return false;
-         
+
+            if (!isValidforstepCorss(step, near, out p))
+                return false;
+
             return true;
         }
 
@@ -283,17 +300,17 @@ namespace rrtRobot
                 List<double> resultendVEC = getLocVectorafterRotateDeg(near, result_near2step);
 
 
-                 p = new point(near.x + (step.x - near.x) * j / LineDiv,
-                    near.y + (step.y - near.y) * j / LineDiv,
-                    near.z + (step.z - near.z) * j / LineDiv,
-                    resultendVEC[0],
-                    resultendVEC[1],
-                    resultendVEC[2],
-                    step.Gun_Open);
+               p = new point(near.x + (step.x - near.x) * j / LineDiv,
+                   near.y + (step.y - near.y) * j / LineDiv,
+                   near.z + (step.z - near.z) * j / LineDiv,
+                   resultendVEC[0],
+                   resultendVEC[1],
+                   resultendVEC[2],
+                   step.Gun_Open);
 
-                if (!collisioncheckforSinglePoint(p))
+                if (!collisioncheckforSinglePoint(ref p))
                 {
-                   
+
                     Node3D_star temp = new Node3D_star();
                     temp.loc = p;
                     temp.cost = 0;
@@ -306,15 +323,33 @@ namespace rrtRobot
             p = new point(0, 0, 0, 0, 0, 0, 0);
             return true;
         }
-       
-        public static bool collisioncheckforSinglePoint(point step)
+
+        public static bool collisioncheckforSinglePoint(ref point step)
         {
             ArrayList Solutions = RobotKinemetix.robotInverseCal(robot, step);
 
-            if (Solutions.Count == 0) return false;        
+            if (Solutions.Count == 0) return false;
             RobotKinemetix.TxRobotPostureGenerate(TxrrtRobotPathPlannerForm.robot, Solutions, step.Gun_Open);
-           
-            if (Collision_Check(cd, queryParams, root, collisionSrc, collisionTar, 5.0))return true;
+
+
+            if (Collision_Check(cd, queryParams, root, collisionSrc, collisionTar, 5.0)) return true;
+
+            int gun_open_step = 30;
+            for (int i = gun_open_step - 1; i >= 1; i--)
+            {
+                RobotKinemetix.TxRobotPostureGenerate(TxrrtRobotPathPlannerForm.robot, Solutions, step.Gun_Open * 1.0 * i / gun_open_step);
+                if (Collision_Check(cd, queryParams, root, collisionSrc, collisionTar, 5.0))
+                {
+                    step.Gun_Open = step.Gun_Open * 1.0 * i / gun_open_step;
+                    Solutions.Clear();
+                    Solutions = null;
+                    return true;
+                }
+
+            }
+            RobotKinemetix.DisposeTxposureData(Solutions);
+            Solutions.Clear();
+            Solutions = null;
             return false;
 
         }
@@ -411,7 +446,7 @@ namespace rrtRobot
             pathcount_end++;
             while (n1.parent != null)
             {
-                if (dist(n1.loc, path_points_end[pathcount_end - 1]) < d/4)
+                if (dist(n1.loc, path_points_end[pathcount_end - 1]) < d / 4)
                 {
                     n1 = n1.parent;
                 }
@@ -427,28 +462,28 @@ namespace rrtRobot
 
 
         }
-        
-       
+
+
         private static List<double> getfromStart2endRotateDgree(point p_start, point p_end) //用于获得从start的到end的旋转角度值
         {
-        /*
-        * 下面的接口函数Matrix_Rotate 得到的result 为三个弧度数值
-        * 第一个参数为start 坐标系绕着基坐标方向X周旋转的角度；
-        * 第二个参数为start 坐标系绕着基坐标方向Y周旋转的角度；
-        * 第二个参数为start 坐标系绕着基坐标方向Z周旋转的角度；
-        * 旋转完成之后，两个坐标系start 与end的方向是一致的
-        * 必须按照先绕X轴，然后绕Y轴，最后绕Z轴的旋转顺序进行
-        */
+            /*
+            * 下面的接口函数Matrix_Rotate 得到的result 为三个弧度数值
+            * 第一个参数为start 坐标系绕着基坐标方向X周旋转的角度；
+            * 第二个参数为start 坐标系绕着基坐标方向Y周旋转的角度；
+            * 第二个参数为start 坐标系绕着基坐标方向Z周旋转的角度；
+            * 旋转完成之后，两个坐标系start 与end的方向是一致的
+            * 必须按照先绕X轴，然后绕Y轴，最后绕Z轴的旋转顺序进行
+            */
 
             List<double> result_start2end = new List<double>();
             result_start2end = RobotKinemetix.MatrixRotate(p_end.rx, p_end.ry, p_end.rz, p_start.rx, p_start.ry, p_start.rz, false);
 
             return result_start2end;
         }
-        private static List<double> getLocVectorafterRotateDeg(point p_start, List<double>rotateDeg)// 位置点经过旋转之后得到的新位置点的旋转角度值
+        public static List<double> getLocVectorafterRotateDeg(point p_start, List<double> rotateDeg)// 位置点经过旋转之后得到的新位置点的旋转角度值
         {
             List<double> result_endVec = new List<double>();
-            
+
             result_endVec = RobotKinemetix.RotationVector(p_start.rx, p_start.ry, p_start.rz,
                   rotateDeg[0], rotateDeg[1], rotateDeg[2], false);
             return result_endVec;
@@ -456,19 +491,52 @@ namespace rrtRobot
         public static List<double> getVectorfromTranslate(point p, List<double> translate)
         {
             double[] vecFrame = new double[6] { p.rx, p.ry, p.rz, p.x, p.y, p.z };
-            double[] vecTranslate = new double[3] { translate[0], translate[1] , translate[2] };
+            double[] vecTranslate = new double[3] { translate[0], translate[1], translate[2] };
             List<double> result_endVec = new List<double>();
-            result_endVec = RobotKinemetix.TranslateVec(vecFrame, vecTranslate,false);
+            result_endVec = RobotKinemetix.TranslateVec(vecFrame, vecTranslate, false);
             return result_endVec;
         }
-       
+
+
+        private double CalculateObstacleDensity(point NodePoint)
+        {
+           
+            double minDistance = double.MaxValue;
+
+            foreach (TxObjectBase obstacle in collisionSrc)
+            {
+                TxVector tran = new TxVector(NodePoint.x, NodePoint.y, NodePoint.z);
+
+                TxVector rot = new TxVector(NodePoint.rx, NodePoint.ry, NodePoint.rz);
+                TxFrameCreationData txPoint=new TxFrameCreationData("NodePoint",new TxTransformation(tran, rot, TxTransformation.TxRotationType.RPY_XYZ));
+
+                TxFrame rrtPoint= TxApplication.ActiveDocument.PhysicalRoot.CreateFrame(txPoint);
+                double Distance =0.0;
+                TxVector txVector1 = new TxVector();
+                TxVector txVector2 = new TxVector();
+                rrtPoint.GetMinimalDistance(obstacle as ITxLocatableObject, out Distance, out txVector1, out txVector2);
+
+                if (Distance <= minDistance) minDistance = Distance;
+
+                rrtPoint.Delete();
+
+
+            }
+
+            if (minDistance >= 100.0)
+                minDistance = 100.0;
+
+
+            return minDistance;
+        }
+
         public async Task rrt_connect(point p_start, point p_end)
         {
             connected = 0;
             state = 1;
             sub_state = 0;
-            nodecount_start = 0;        
-            nodecount_end = 0;         
+            nodecount_start = 0;
+            nodecount_end = 0;
 
             Node3D_star start_node = new Node3D_star();
             Node3D_star end_node = new Node3D_star();
@@ -485,7 +553,7 @@ namespace rrtRobot
 
             start_node.parent = new Node3D_star();
             start_node.cost = 0;
-            end_node.loc = new point(p_end.x, p_end.y, p_end.z,p_end.rx,p_end.ry,p_end.rz, ToolJointOpening);
+            end_node.loc = new point(p_end.x, p_end.y, p_end.z, p_end.rx, p_end.ry, p_end.rz, ToolJointOpening);
 
             end_node.parent = new Node3D_star();
             end_node.cost = 0;
@@ -493,49 +561,76 @@ namespace rrtRobot
             start_nodes.Add(start_node);
 
             nodecount_start++;
-           
+
             end_nodes.Add(end_node);
             nodecount_end++;
             currentpathdone = false;
 
             //获取从 start 到end 的旋转角度，绕坐标系自身旋转，旋转顺序依次为ZYX;
+            //Got the rotation degree from node_start to Node_end, the rotation sequence is from Z to X and rotation frame is according the start node frame itself
 
             rotateStepSizefromStarttoEnd = getfromStart2endRotateDgree(p_start, p_end);
             //获取从 end 到start 的旋转角度，绕坐标系自身旋转，旋转顺序依次为ZYX;
+            //Got the rotation degree from node_end to Node_start, the rotation sequence is from Z to X and rotation frame is according the end node frame itself
 
             rotateStepSizefromEndtoStart = getfromStart2endRotateDgree(p_end, p_start);
 
-            // 确认p_start 和p_end 点处，在现有的gun_open的状态下是没有干涉的，如果有干涉则减小gun_open的数值到不干涉的状态
-            double gun_open_step = p_start.Gun_Open / 30;
+            /* 确认p_start 和p_end 点处，在现有的gun_open的状态下是没有干涉的，如果有干涉则减小gun_open的数值到不干涉的状态
+             * Confirm there is no conflict happened at p_start and p_end point, if there is conflict happened, means the gun_open degree should be reduced to avoid the conflict.
+             * reduce the gun open steps is the data below - gun_open_step;
+             * if there is no suitable gun open data founded at start or end node, rrt_connect function will be returned and error message will be recorded at log file;
+            */
+            // double gun_open_step = p_start.Gun_Open / 30;
+            int gun_open_splict = 30;
 
-            while (!collisioncheckforSinglePoint(p_start))
+            while (!collisioncheckforSinglePoint(ref p_start))
             {
-                p_start.Gun_Open -= gun_open_step;
-                if ((Math.Abs(p_start.Gun_Open) <= Math.Abs(gun_open_step))|| (p_start.Gun_Open* gun_open_step<0))
-                {
-                    return;
-                }
+                /* p_start.Gun_Open -= gun_open_step;
+                 if ((Math.Abs(p_start.Gun_Open) <= Math.Abs(gun_open_step))|| (p_start.Gun_Open* gun_open_step<0))
+                 {
+                     logpathGenerateGun_openIssueReturned();
+                     return;
+                 }
+                */
+                logpathGenerateGun_openIssueReturned();
+                return;
             }
-            
+
             start_node.loc.Gun_Open = p_start.Gun_Open;
 
-            gun_open_step = p_end.Gun_Open / 30;
+            //gun_open_step = p_end.Gun_Open / 30;
 
-            while (!collisioncheckforSinglePoint(p_end))
+            while (!collisioncheckforSinglePoint(ref p_end))
             {
-                p_end.Gun_Open -= gun_open_step;
-                if(Math.Abs(p_end.Gun_Open)<= Math.Abs(gun_open_step) || (p_end.Gun_Open * gun_open_step < 0))
-                {
-                    return;
-                }
+                /*
+                 p_end.Gun_Open -= gun_open_step;
+                 if(Math.Abs(p_end.Gun_Open)<= Math.Abs(gun_open_step) || (p_end.Gun_Open * gun_open_step < 0))
+                 {
+                     logpathGenerateGun_openIssueReturned();
+                     return;
+                 }
+                */
+                logpathGenerateGun_openIssueReturned();
+                return;
             }
-            
+
             end_node.loc.Gun_Open = p_end.Gun_Open;
 
 
-            int threshold = 100;
+            int threshold = 300;
             while (connected != 1)
             {
+
+                /* rrtconnectCal_ongoing is the parameter which can be stop current calculations in UI inteference;
+                 * "threshold" used to define the calculation frequency,  below coding means if the rrt_connect calculation exceed 1000 times, current calculation will be exited;
+                 * every 100 rrt_connect calculation iteration, the step_size will be increase 100, which is help to find the correct node in larger working scope;
+                 * For limited working room , and Robot need less step size to found the correct node, the step size increase below will be not helpful;
+                 * Step size data change may need effect in machine learnning which is under investigate;
+                 * Start_step_size = 10.0;
+                 * int threshold = 100;
+                 * Start_step_size += 100;
+                 * 
+                 */
 
                 if (!rrtconnectCal_ongoing)
                 {
@@ -544,23 +639,26 @@ namespace rrtRobot
 
                 sub_state = 0;
                 IterationCounts++;
-                if ((IterationCounts / threshold) == 10) return; //如果迭代次数超过1000次则退出
-                else if((IterationCounts % threshold)==0)//每迭代100次则步长距离增加100；
+                if ((IterationCounts / threshold) == 10) return; //如果迭代次数超过3000次则退出
+                //else if((IterationCounts % threshold)==0)//每迭代100次则步长距离增加100；
+                else if ((IterationCounts % threshold) == 0)//每迭代300次则步长距离增加5；
                 {
-                    Start_step_size += 100;
-                    End_step_size += 100;
+                    original_step_size += 5;
+                   
                 }
-                
-                
+                Start_step_size = original_step_size;
+                End_step_size = original_step_size;
+
+
                 if (state == 1)
                 {
-                    double rand_node_gun_open= 0;
-                    int gun_Open_rd_Limint = (int)(Math.Abs(start_node.loc.Gun_Open) / Math.Abs(gun_open_step));
-                    if (iterate_Count >= 8) gun_Open_rd_Limint *= 2;
-                    rand_node_gun_open = start_node.loc.Gun_Open - rd.Next(0, gun_Open_rd_Limint/2) * gun_open_step;
-                   
-                    rand_node.loc = new point(rd.Next((int)(start_nodes[0].loc.x-1000), (int)(start_nodes[0].loc.x + 1000)), 
-                        rd.Next((int)(start_nodes[0].loc.y - 1000), (int)(start_nodes[0].loc.y + 1000)), 
+                    double rand_node_gun_open = 0;
+                    // int gun_Open_rd_Limint = (int)(Math.Abs(start_node.loc.Gun_Open) / Math.Abs(gun_open_step));
+                    //if (iterate_Count >= 8) gun_Open_rd_Limint *= 2;
+                    rand_node_gun_open = ToolJointOpening - rd.Next(0, gun_open_splict) * (ToolJointOpening / gun_open_splict);
+
+                    rand_node.loc = new point(rd.Next((int)(start_nodes[0].loc.x - 1000), (int)(start_nodes[0].loc.x + 1000)),
+                        rd.Next((int)(start_nodes[0].loc.y - 1000), (int)(start_nodes[0].loc.y + 1000)),
                         rd.Next((int)(start_nodes[0].loc.z - 1000), (int)(start_nodes[0].loc.z + 1000)),
                         p_start.rx, p_start.ry, p_start.rz, rand_node_gun_open);
                     index = Nearest_Node(rand_node);
@@ -570,13 +668,19 @@ namespace rrtRobot
                     }
                     if (dist(start_nodes[index].loc, rand_node.loc) < Start_step_size)
                     {
-                       
+
                         continue;
                     }
                     else
                     {
                         step_node = new Node3D_star();
-                        (step_node.loc) = step_func(start_nodes[index].loc, rand_node.loc, Start_step_size,true);
+                        if (CalculateObstacleDensity(start_nodes[index].loc) >= Start_step_size)
+                        {
+                            Start_step_size = CalculateObstacleDensity(start_nodes[index].loc);
+                        }
+                        else
+                            Start_step_size = original_step_size;
+                        (step_node.loc) = step_func(start_nodes[index].loc, rand_node.loc, Start_step_size, true);
 
                     }
                     if (isValid(ref step_node.loc, start_nodes[index].loc) == false)
@@ -608,7 +712,7 @@ namespace rrtRobot
 
                         index = Nearest_Node(step_node);
                         if (index < 0) continue;
-                        if (isValid(ref step_node.loc, end_nodes[index].loc)||(!rrtconnectCal_ongoing))
+                        if (isValid(ref step_node.loc, end_nodes[index].loc) || (!rrtconnectCal_ongoing))
                         {
 
                             connected = 1;
@@ -621,20 +725,30 @@ namespace rrtRobot
                         else
                         {
                             sub_step_node = new Node3D_star();
-                            (sub_step_node.loc) = step_func(end_nodes[index].loc, step_node.loc, End_step_size,false);
+
+                            if (CalculateObstacleDensity(end_nodes[index].loc) >= End_step_size)
+                            {
+                                End_step_size = CalculateObstacleDensity(end_nodes[index].loc);
+                            }
+                            else
+                                End_step_size = original_step_size;
+
+
+
+                            (sub_step_node.loc) = step_func(end_nodes[index].loc, step_node.loc, End_step_size, false);
                         }
-                       
+
                         if (dist(sub_step_node.loc, end_nodes[end_nodes.Count - 1].loc) <= 0.01)
                         {
                             sub_step_node.loc.x = (end_nodes[index].loc.x + step_node.loc.x) / 2;
                             sub_step_node.loc.y = (end_nodes[index].loc.y + step_node.loc.y) / 2;
                             sub_step_node.loc.z = (end_nodes[index].loc.z + step_node.loc.z) / 2;
                         }
-                       
+
                         if (isValid(ref sub_step_node.loc, end_nodes[index].loc) == false)
                         {
 
-                            sub_state = 1;                   
+                            sub_state = 1;
                             failCount++;
                             continue;
                         }
@@ -644,12 +758,12 @@ namespace rrtRobot
                             sub_step_node.parent = end_nodes[index];
                             sub_step_node.cost = end_nodes[index].cost + End_step_size;
                             minimal_cost(sub_step_node);
-                           
+
 
                             end_nodes.Add(sub_step_node);
                             nodecount_end++;
                             end_substate++;
-                            if(end_substate>5)
+                            if (end_substate > 5)
                             {
                                 sub_state = 1;
                                 end_substate = 0;
@@ -663,26 +777,35 @@ namespace rrtRobot
                 {
 
                     double rand_node_gun_open = 0;
-                    int gun_Open_rd_Limint = (int)(Math.Abs(end_node.loc.Gun_Open) / Math.Abs(gun_open_step));
-                    if (iterate_Count == 8) gun_Open_rd_Limint *= 2;
-                    rand_node_gun_open = end_node.loc.Gun_Open - rd.Next(0, gun_Open_rd_Limint/2) * gun_open_step;
-                    rand_node.loc = new point(rd.Next((int)(end_nodes[0].loc.x - 1000), (int)(end_nodes[0].loc.x + 1000)), 
+                    //int gun_Open_rd_Limint = (int)(Math.Abs(end_node.loc.Gun_Open) / Math.Abs(gun_open_step));
+                    //if (iterate_Count == 8) gun_Open_rd_Limint *= 2;
+                    rand_node_gun_open = ToolJointOpening - rd.Next(0, gun_open_splict) * (ToolJointOpening / gun_open_splict);
+                    rand_node.loc = new point(rd.Next((int)(end_nodes[0].loc.x - 1000), (int)(end_nodes[0].loc.x + 1000)),
                         rd.Next((int)(end_nodes[0].loc.y - 1000), (int)(end_nodes[0].loc.y + 1000)),
                         rd.Next((int)(end_nodes[0].loc.z - 1000), (int)(end_nodes[0].loc.z + 1000)),
                          p_end.rx, p_end.ry, p_end.rz, rand_node_gun_open);
                     index = Nearest_Node(rand_node);
-                   
+
                     if (index < 0) continue;
-                    
+
                     if (dist(end_nodes[index].loc, rand_node.loc) < End_step_size) continue;
                     else
                     {
                         step_node = new Node3D_star();
-                        (step_node.loc) = step_func(end_nodes[index].loc, rand_node.loc, End_step_size,false);
+
+                        if (CalculateObstacleDensity(end_nodes[index].loc) >= End_step_size)
+                        {
+                            End_step_size = CalculateObstacleDensity(end_nodes[index].loc);
+                        }
+                        else
+                            End_step_size = original_step_size;
+
+
+                        (step_node.loc) = step_func(end_nodes[index].loc, rand_node.loc, End_step_size, false);
                     }
 
                     if (isValid(ref step_node.loc, end_nodes[index].loc) == false)
-                    {                       
+                    {
                         failCount++;
                         continue;
                     }
@@ -694,7 +817,7 @@ namespace rrtRobot
                         minimal_cost(step_node);
                         end_nodes.Add(step_node);
                         nodecount_end++;
-                        
+
                     }
 
                     state = 1;
@@ -702,7 +825,7 @@ namespace rrtRobot
                     while (sub_state != 1)
                     {
                         if (!rrtconnectCal_ongoing) break;
-                       
+
                         index = Nearest_Node(step_node);
                         if (index < 0) continue;
                         if (isValid(ref step_node.loc, start_nodes[index].loc) || (!rrtconnectCal_ongoing))
@@ -716,7 +839,16 @@ namespace rrtRobot
                         else
                         {
                             sub_step_node = new Node3D_star();
-                            (sub_step_node.loc) = step_func(start_nodes[index].loc, step_node.loc, Start_step_size,true);
+
+                            if (CalculateObstacleDensity(start_nodes[index].loc) >= Start_step_size)
+                            {
+                                Start_step_size = CalculateObstacleDensity(start_nodes[index].loc);
+                            }
+                            else
+                                Start_step_size = original_step_size;
+
+
+                            (sub_step_node.loc) = step_func(start_nodes[index].loc, step_node.loc, Start_step_size, true);
                         }
                         /*
                             */
@@ -750,7 +882,7 @@ namespace rrtRobot
                             }
 
                         }
-                       
+
                     }
 
                 }
@@ -758,7 +890,7 @@ namespace rrtRobot
                 await Task.Delay(50);
 
             }
-            
+
             path_points_start.Reverse();
 
             path_points_start.AddRange(path_points_end);
@@ -766,6 +898,6 @@ namespace rrtRobot
             currentpathdone = true;// 记录当前的轨迹已经计算结束，无论是正常结束还是手动结束
         }
 
-       
+
     }
 }

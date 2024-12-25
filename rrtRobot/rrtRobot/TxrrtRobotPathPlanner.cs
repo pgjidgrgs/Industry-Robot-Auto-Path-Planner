@@ -1,8 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Windows;
-using System.Windows.Forms;
-using Tecnomatix.Engineering;
+﻿using Tecnomatix.Engineering;
 
 
 namespace rrtRobot
@@ -31,11 +27,11 @@ namespace rrtRobot
         {
 
             TxrrtRobotPathPlannerForm rob_Form = new TxrrtRobotPathPlannerForm();
-           
+
             rob_Form.Show();
             rob_Form.Form_Setup();
         }
-       
+
         public override string Bitmap
         {
 

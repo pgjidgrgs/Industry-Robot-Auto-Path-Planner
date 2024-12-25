@@ -6,5 +6,6 @@
     <StartArguments>/c NewAssembler /l offline</StartArguments>
     <StartWorkingDirectory>C:\Program Files\Tecnomatix_2402\eMPower\</StartWorkingDirectory>
     <EnableUnmanagedDebugging>true</EnableUnmanagedDebugging>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
 </Project>

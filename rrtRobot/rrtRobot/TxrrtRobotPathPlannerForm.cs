@@ -1,21 +1,13 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Tecnomatix.Engineering;
 using Tecnomatix.Engineering.Ui;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
-using System.Xml.Linq;
-using Tecnomatix.Engineering.PrivateImplementationDetails;
 
 
 
@@ -35,6 +27,32 @@ namespace rrtRobot
      * 中间过度点的逃离方向是基于机器人基坐标的X/Y/Z轴，用于需要选择沿着哪个轴进行逃离计算可以得到中间过度点，中间过度点的算法优化目前还在开发当中；
      * 完成以上任务之后，所有的配置已经完成；
      * 选中需要计算的机器人轨迹(只能包括焊点，其他的类型点不参加计算）, 点击path connect,计算完成后，点击生成轨迹即可；
+     * 
+     * The rrtRobot.dll file is a plugin for industrial robot path simulation, developed using Siemens Tecnomatix Process Simulate.
+     * Installation: 
+     * The generated DLL requires installation and debugging according to the instructions in the reference document "How to activate the DLL in Tecnomatix simulation software."
+     * Functionality: 
+     * The DLL utilizes the Tecnomatix API, primarily for collision detection, robot forward and inverse kinematics, robot posture manipulation, and automated path point generation.
+     * Key Class: TxRobotKinematix: This class contains commonly used functions for robot kinematics, accessible by the system.
+     * Key Class: TxRobotRRTConnect: This class implements the RRT*-Connect path planning algorithm. The code's reliability has been verified using VTK 3D visualization (see GitHub link).
+     * https://github.com/WYoseanLove/RRT-_Connect_3D
+     * Logging: 
+     * Log files are saved in Documents/rrtRobot/. The log function can be modified to output custom parameters
+     * Application: 
+     * This program is currently designed for generating welding trajectories for robot-mounted servo welding guns (spot welding).
+     * Robot Selection (m_txRobotName_Picked()):
+     * The software interface requires selecting the robot for which to generate the trajectory. Ensure the selected robot has the correct welding gun attached
+     * Collision Detection Data: 
+     * The interface also requires selecting all data necessary for collision detection
+     * Escape Direction for Intermediate Points: 
+     * The software requires defining an "escape direction" for intermediate points in the robot trajectory. 
+     * The RRT*-Connect algorithm iterates 1000 times. If it fails to find a path within 1000 iterations, intermediate points are generated. 
+     * RRT*-Connect is then run separately between the start and intermediate points, and between the intermediate and end points, until a complete trajectory is found. 
+     * The escape direction is based on the robot's base coordinate system's X, Y, and Z axes. 
+     * The algorithm for selecting the escape direction and optimizing intermediate points is still under development
+     * Workflow: 
+     * After configuring the robot, collision data, and escape direction, select the welding points (only welding points are considered; 
+     * other point types are ignored), click "path connect," and after the calculation is complete, click "generate trajectory."
      */
 
     public partial class TxrrtRobotPathPlannerForm : TxForm
@@ -50,7 +68,7 @@ namespace rrtRobot
         public static TxObjectList collisionTar;
         public static TxCollisionPairCreationData cd;
         public static TxCollisionPair cp;
-        public static TxCollisionQueryParams queryParams ;
+        public static TxCollisionQueryParams queryParams;
         public static TxObjectList collisionSrc;
         public static TxCollisionRoot root;
         public static TxRobot robot;
@@ -58,9 +76,9 @@ namespace rrtRobot
         private int progressbarCount = 0;
         public TxWeldOperation weldTargetOperation;
         public static double ToolJointOpening; // 存放的是焊钳的open的尺寸
-        public static bool rrtconnectCal_ongoing=false;
-        public List<Tuple<Node3D, string>> node3D_startList ;
-        public List<Tuple<Node3D, string>> node3D_endList ;
+        public static bool rrtconnectCal_ongoing = false;
+        public List<Tuple<Node3D, string>> node3D_startList;
+        public List<Tuple<Node3D, string>> node3D_endList;
         public static int iterate_Count = 0;// 记录由于1000次rrt 迭代计算无法得到结果而跳出的次数，这个次数会决定了rrt生成的RX/RY的旋转角度
 
         // 用于log文件txt的生成，在系统Documents/rrtRobot文件夹下面
@@ -79,7 +97,7 @@ namespace rrtRobot
             // 组合完整的子文件夹路径和文件路径
             string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string subFolderName = "rrtRobot";
-             string fileName = "dataLog.txt";
+            string fileName = "dataLog.txt";
 
             string subFolderPath = Path.Combine(documentsPath, subFolderName);
             LogfilePath = Path.Combine(subFolderPath, fileName);
@@ -103,15 +121,15 @@ namespace rrtRobot
             m_pathGenerate.Enabled = false;
             m_pathGenerate.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            label1.Font=new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold| System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            m_spotDirec.Font= new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            Robot_Name.Font= new System.Drawing.Font("Microsoft Sans Serif", 13);
+            m_spotDirec.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            Robot_Name.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
             TCP.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
             Collision_Src.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
-            groupBox2.Size=new System.Drawing.Size(465, 112);
-            Group_Collision.Size = new System.Drawing.Size(465,103);
+            groupBox2.Size = new System.Drawing.Size(465, 112);
+            Group_Collision.Size = new System.Drawing.Size(465, 103);
             groupBox1.Size = new System.Drawing.Size(465, 92);
             groupBox3.Size = new System.Drawing.Size(465, 54);
             this.Size = new System.Drawing.Size(507, 519);
@@ -133,7 +151,7 @@ namespace rrtRobot
              * 将机器人，和焊钳添加到碰撞检测的target中去，Src的定义需要用户来实现
              */
 
-           robot = m_txRobotName.Object as TxRobot;
+            robot = m_txRobotName.Object as TxRobot;
             if (robot != null)
             {
 
@@ -162,6 +180,11 @@ namespace rrtRobot
                 return;
             }
             tSelectObject = robot.MountedTools[0] as ITxDevice;
+            if (tSelectObject == null)
+            {
+                TxMessageBox.Show("No Weld Gun Added in Picked Robot Tool Box !", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (robot.MountedTools.Count > 1)
             {
                 for (int i = 0; i < robot.MountedTools.Count; i++)
@@ -224,6 +247,7 @@ namespace rrtRobot
         {
             TxObjectBase txObjects = m_collisionListPick.Object as TxObjectBase;
             collisionSrc.Add(m_collisionListPick.Object);
+            
             m_collisionListPick.AddItem(m_collisionListPick.Object.Name, m_collisionListPick.Object);
             m_collisionListPick.LoseFocus();
         }
@@ -257,7 +281,78 @@ namespace rrtRobot
                     double ry = ((TxWeldLocationOperation)allWeldPointsExist[i]).AbsoluteLocation.RotationRPY_XYZ.Y;
                     double rz = ((TxWeldLocationOperation)allWeldPointsExist[i]).AbsoluteLocation.RotationRPY_XYZ.Z;
 
-                    point weldPoc = new point(tx, ty, tz, rx, ry, rz,0);
+
+                    //移除process Type, 并改为Line;
+
+                    ArrayList Location_paramList = ((TxWeldLocationOperation)allWeldPointsExist[i]).Parameters;
+
+                    for (int j = 0; j < Location_paramList.Count; j++) //iterate throug the arraylist
+                    {
+
+                        if (Location_paramList[j].GetType() == typeof(TxRoboticStringParam)) //if param is int
+                        {
+
+                            try
+                            {
+                                TxRoboticStringParam stringParam = Location_paramList[j] as TxRoboticStringParam;
+                                if(stringParam.Type=="ProcessType")
+                                {
+                                    stringParam.Value = "";
+                                    ((TxWeldLocationOperation)allWeldPointsExist[i]).SetParameter(new TxRoboticStringParam("ProcessType", ""));
+                                }
+                                
+
+
+                            }
+                            catch (Exception e)
+
+                            {
+
+                                throw;
+
+                            }
+
+                        }
+                        
+                    }
+
+                    Location_paramList = ((TxWeldLocationOperation)allWeldPointsExist[i]).Parameters;
+
+                    for (int j = 0; j < Location_paramList.Count; j++) //iterate throug the arraylist
+                    {
+
+                        if (Location_paramList[j].GetType() == typeof(TxRoboticIntParam)) //if param is int
+                        {
+
+                            try
+                            {
+
+                                TxRoboticIntParam intParam = Location_paramList[j] as TxRoboticIntParam;
+                                if (intParam.Type == "RRS_MOTION_TYPE")
+                                {
+                                    intParam.Value = 2;
+                                    ((TxWeldLocationOperation)allWeldPointsExist[i]).SetParameter(new TxRoboticIntParam("RRS_MOTION_TYPE", 2));
+                                }
+
+
+                            }
+                            catch (Exception e)
+
+                            {
+
+                                throw;
+
+                            }
+
+                        }
+
+
+
+
+                    }
+                    //
+
+                    point weldPoc = new point(tx, ty, tz, rx, ry, rz, 0);
                     ArrayList Solutions = RobotKinemetix.robotInverseCal(robot, weldPoc);
                     while (!postureOK)
                     {
@@ -279,21 +374,22 @@ namespace rrtRobot
                         rx = ((TxWeldLocationOperation)allWeldPointsExist[i]).AbsoluteLocation.RotationRPY_XYZ.X;
                         ry = ((TxWeldLocationOperation)allWeldPointsExist[i]).AbsoluteLocation.RotationRPY_XYZ.Y;
                         rz = ((TxWeldLocationOperation)allWeldPointsExist[i]).AbsoluteLocation.RotationRPY_XYZ.Z;
-                        Solutions = RobotKinemetix.robotInverseCal(robot, new point(tx, ty, tz, rx, ry, rz,0));
+                        Solutions = RobotKinemetix.robotInverseCal(robot, new point(tx, ty, tz, rx, ry, rz, 0));
                         LocRotationCount++;
                         if (LocRotationCount == 36)
                         {
                             TxApplication.ActiveDocument.OperationRoot.AddObject(((TxWeldLocationOperation)allWeldPointsExist[i]));
                             break;
                         }
-                       
+
                         else
                             continue;
 
 
 
                     }
-
+                    RobotKinemetix.DisposeTxposureData(Solutions);
+                    Solutions.Clear();
                     postureOK = false;
                     LocRotationCount = 0;
 
@@ -359,50 +455,53 @@ namespace rrtRobot
                 TxTransformation weldFrameLocation = ((TxRoboticViaLocationOperation)RobLocation).AbsoluteLocation;
                 ((TxRoboticViaLocationOperation)RobLocation).AbsoluteLocation = weldFrameLocation * txTransformation * loca_Translate;
                 return ((TxRoboticViaLocationOperation)RobLocation);
-                
+
             }
 
 
 
         }
 
+        public static int TxRobotCollision = 0;
         public static bool Collision_Check(TxCollisionPairCreationData cd, TxCollisionQueryParams queryParams, TxCollisionRoot root, TxObjectList collisionSrc, TxObjectList collisionTar, double Clearance)
 
-        {  
+        {
             queryParams.Mode = TxCollisionQueryParams.TxCollisionQueryMode.DefinedPairs;
 
             queryParams.NearMissDistance = Clearance;
- 
+
             TxCollisionQueryResults results = root.GetCollidingObjects(queryParams);
+
             if (results.States.Count == 0)
             {
-               
+                results.States.Clear();
                 cd.Dispose();
-
                 return true;
             }
 
-            for (int i=0;i< results.States.Count;i++)
+            for (int i = 0; i < results.States.Count; i++)
             {
-                if ((results.States[i] as TxCollisionState).Type==TxCollisionState.TxCollisionStateType.Collision)
+                if ((results.States[i] as TxCollisionState).Type == TxCollisionState.TxCollisionStateType.Collision)
                 {
+                    results.States.Clear();
                     cd.Dispose();
-
                     return false;
 
                 }
             }
 
-
+            results.Dispose();
+            results = null;
             cd.Dispose();
-           
+            TxRobotCollision++;
             return true;
         }
-        
+
         public static List<List<point>> fullpath;
-        private bool generatePassThroughPoints(ref point p)
-        {
-            /*当RRTCONNECT 算法迭代1000次计算，仍未找到合适的路径时候，软件会跳出RRTCONNECT计算，并根据start，end node点生成中间过度点(PassThroughPoints)
+
+        /*
+         * bool generatePassThroughPoints(ref point p, bool direction)
+         * 当RRTCONNECT 算法迭代1000次计算，仍未找到合适的路径时候，软件会跳出RRTCONNECT计算，并根据start，end node点生成中间过度点(PassThroughPoints)
              * 首先spotagainstCollisonSrc()函数来确认过度点是按照目前焊点坐标系的哪个轴去移动，用户在界面中输入的spot direction就是用于计算此过度点移动轴
              * spotagainstCollisonSrc()的计算方式是将焊点坐标系投影到机器人的基坐标系中，并计算各个轴在用于界面选取的坐标轴夹角的sin 值，值越小，说明焊点坐标系的这个轴越靠近选取的贝利方向
              * 首先定义stepsize, 根据stepsize 进行移动，如果焊钳TCP距离机器人更远了，说明移动的方向相反，则更改stepsize 的符号；
@@ -410,27 +509,40 @@ namespace rrtRobot
              * 过度点按照事先计算出的移动方向开始移动，直到与干涉物碰撞检测通过之后确认过度点，并加入到path 计算中去
              * 如果移动的次数超过20次仍未通过碰撞检测，则说明失败，则退出，并从轨迹中移除end node， 说明这段轨迹计算失败
              * 目前计算失败的案例都是因为过度点的计算失效的，根本原因就是用户选择的方向，这个方向需要研究算法可以自动计算，但目前无法做到
+             * 
+             * If the RRT-Connect algorithm fails to find a suitable path after 1000 iterations, the software exits the RRT-Connect calculation and generates an intermediate waypoint (PassThroughPoints) between the start and end nodes.
+             * Escape Direction Determination: The spotagainstCollisonSrc() function determines the axis along which the waypoint should be moved. The user-specified spot direction in the interface is used for this calculation.
+             * Axis Selection Logic: spotagainstCollisonSrc() projects the welding point coordinate system onto the robot's base coordinate system. It then calculates the sine of the angle between each axis of the welding point coordinate system and the user-selected axis. The axis with the smallest sine value (closest to the selected direction) is chosen as the movement direction for the waypoint.
+             * Iterative Waypoint Adjustment: An initial stepsize is defined. The waypoint is moved iteratively along the selected axis. If the distance between the welding gun TCP (Tool Center Point) and the robot increases after a move, it indicates the movement is in the wrong direction, so the sign of stepsize is reversed.
+             * Waypoint Placement and Movement: The initial waypoint is placed at the midpoint between the start and end nodes. It is iteratively moved towards the end node along the calculated direction until a collision-free position is found.
+             * Collision Detection and Iteration Limit: The waypoint is moved until collision detection passes. If collision detection fails after 20 iterations, the process is deemed unsuccessful. The end node is removed from the trajectory, indicating failure for that segment.
+             * Failure Analysis: Current failures are primarily attributed to waypoint calculation issues, specifically, the user-selected direction. An algorithm for automatically determining this direction is under development.
             */
-            List<double> distoAix= RobotKinemetix.spotagainstCollisonSrc(p, new point(robot.AbsoluteLocation.Translation.X,
+        private bool generatePassThroughPoints(ref point p, bool direction)
+        {
+            
+            List<double> distoAix = RobotKinemetix.spotagainstCollisonSrc(p, new point(robot.AbsoluteLocation.Translation.X,
                robot.AbsoluteLocation.Translation.Y,
                robot.AbsoluteLocation.Translation.Z,
                robot.AbsoluteLocation.RotationRPY_XYZ.X,
                robot.AbsoluteLocation.RotationRPY_XYZ.Y,
-               robot.AbsoluteLocation.RotationRPY_XYZ.Z, p.Gun_Open), spotagainstCollisionSrc);
+               robot.AbsoluteLocation.RotationRPY_XYZ.Z, p.Gun_Open), ref spotagainstCollisionSrc, direction);
+
+
             point temP = p;
             double stepsize = 50;
             // 首先沿着计算出的轴移动50mm，确定stepsize 的方向，移动的方向需要距离机器人更近
-            List<double> stepMoves = new List<double>() { 0,0,0};
+            List<double> stepMoves = new List<double>() { 0, 0, 0 };
             stepMoves = confirmStepMovesDirection(stepMoves, distoAix, stepsize, p);
             while (true)
             {
-                if (spotAgainstCollisionMotion(stepMoves,  distoAix,  stepsize, p, out temP))
+                if (spotAgainstCollisionMotion(stepMoves, distoAix, stepsize, p, out temP))
                     break;
 
 
                 int minIndex = distoAix.IndexOf(distoAix.Min());
 
-                distoAix[minIndex] =Double.MaxValue;
+                distoAix[minIndex] = Double.MaxValue;
                 minIndex = distoAix.IndexOf(distoAix.Min());
                 if (distoAix[minIndex] == Double.MaxValue)
                     return false;
@@ -441,11 +553,12 @@ namespace rrtRobot
 
             p = temP;
 
-            TxRobotRRTConnect.LogInformation(p, distoAix);
+            if (direction)
+                TxRobotRRTConnect.LogInformation(p, distoAix);
             return true;
         }
-        
-        private List<double> confirmStepMovesDirection(List<double> stepMoves, List<double> distoAix,double stepsize, point p)
+
+        private List<double> confirmStepMovesDirection(List<double> stepMoves, List<double> distoAix, double stepsize, point p)
         {
             List<double> tempmoves = new List<double>();
             double newdistance = 0;
@@ -456,7 +569,7 @@ namespace rrtRobot
              0, 0, 0, 0));
 
             int minIndex = distoAix.IndexOf(distoAix.Min());
-            if(minIndex>2)
+            if (minIndex > 2)
             {
                 return stepMoves;
             }
@@ -479,7 +592,7 @@ namespace rrtRobot
             return stepMoves;
         }
 
-        private bool spotAgainstCollisionMotion(List<double> stepMoves, List<double> distoAix, double stepsize, point p,out point temP)
+        private bool spotAgainstCollisionMotion(List<double> stepMoves, List<double> distoAix, double stepsize, point p, out point temP)
         {
 
             List<double> tempmoves = new List<double>();
@@ -487,10 +600,11 @@ namespace rrtRobot
             int n = 1;
             while (true)
             {
-                if (TxRobotRRTConnect.collisioncheckforSinglePoint(temP)) break;
+                if (TxRobotRRTConnect.collisioncheckforSinglePoint(ref temP)) break;
 
                 tempmoves = TxRobotRRTConnect.getVectorfromTranslate(temP, stepMoves);
-                temP = new point(tempmoves[0], tempmoves[1], tempmoves[2], p.rx, p.ry, p.rz, ToolJointOpening);
+                //temP = new point(tempmoves[0], tempmoves[1], tempmoves[2], p.rx, p.ry, p.rz, ToolJointOpening);
+                temP = new point(tempmoves[0], tempmoves[1], tempmoves[2], p.rx, p.ry, p.rz, temP.Gun_Open);
                 int minIndex = distoAix.IndexOf(distoAix.Min());
                 stepMoves[minIndex] += stepsize * (stepMoves[minIndex] / (Math.Abs(stepMoves[minIndex])));
                 n++;
@@ -509,7 +623,7 @@ namespace rrtRobot
              * 首先将没有计算出的焊点移出现有的轨迹
              * 按照焊点顺序和fullpath 的顺序依次生成轨迹坐标
              */
-            
+
             if (fullpath.Count == 0)
             {
                 TxMessageBox.Show("No Path Generated !", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -517,10 +631,10 @@ namespace rrtRobot
             }
 
             TxTypeFilter opFilter = new TxTypeFilter(typeof(TxWeldLocationOperation));
-            
+
             TxObjectList allWeldPointsExist = weldTargetOperation.GetDirectDescendants(opFilter);
 
-            if(fullpath.Count!= node3D_startList.Count)
+            if (fullpath.Count != node3D_startList.Count)
             {
                 // 首先将没算完成的焊点移出去再生成轨迹
                 string lastpathweldName = "";
@@ -556,6 +670,11 @@ namespace rrtRobot
                     TxMessageBox.Show("please Teach the weld spot target point as reference for Robot ConfigurationData !", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+                if((allWeldPointsExist[i] as TxWeldLocationOperation).RobotExternalAxesData== null)
+                {
+                    TxMessageBox.Show("please Setup ServerGun Joint Value !", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
 
             }
@@ -569,12 +688,12 @@ namespace rrtRobot
 
                 for (int j = 0; j < fullpath[pathindex].Count; j++)
                 {
-                  
+
                     TxRoboticViaLocationOperation RobFramepostLocation = TxRobotPathOptimize.addrobotPathViaLoc("LocTemp" + allWeldPointsExist[i].Name + j.ToString(), new point(fullpath[pathindex][j].x, fullpath[pathindex][j].y, fullpath[pathindex][j].z,
-                        fullpath[pathindex][j].rx, fullpath[pathindex][j].ry, fullpath[pathindex][j].rz, fullpath[pathindex][j].Gun_Open), weldTargetOperation,robot);
-                   
+                        fullpath[pathindex][j].rx, fullpath[pathindex][j].ry, fullpath[pathindex][j].rz, fullpath[pathindex][j].Gun_Open), weldTargetOperation, robot);
+
                     weldTargetOperation.MoveChildAfter((TxWeldLocationOperation)allWeldPointsExist[i + 1], RobFramepostLocation);
-                    
+
                 }
                 if ((pathindex + 1) >= node3D_startList.Count) continue;
                 if (allWeldPointsExist[i + 1].Name != node3D_startList[pathindex + 1].Item2) i--;
@@ -582,9 +701,10 @@ namespace rrtRobot
                 pathindex++;
             }
 
-            bool optimizedDone= TxRobotPathOptimize.OperationOptimize2(ref weldTargetOperation,robot);
-            if(optimizedDone)
+            bool optimizedDone = TxRobotPathOptimize.OperationOptimize(ref weldTargetOperation, robot);
+            if (optimizedDone)
             {
+
                 cp.Delete();
                 TxApplication.ActiveSelection.Clear();
             }
@@ -595,7 +715,7 @@ namespace rrtRobot
 
                 TxObjectList _robotOpLocation = weldTargetOperation.GetAllDescendants(opFilter);
 
-                for (int i=0;i< _robotOpLocation.Count;i++)
+                for (int i = 0; i < _robotOpLocation.Count; i++)
                 {
 
                     if (_robotOpLocation[i].GetType() == typeof(TxWeldLocationOperation)) continue;
@@ -604,20 +724,19 @@ namespace rrtRobot
                         _robotOpLocation[i].Delete();
                         _robotOpLocation.RemoveAt(i);
                     }
-                   
+
                 }
 
             }
-           
+
 
         }
-        
+
         private async void button1_Click(object sender, EventArgs e)
         {
-            //创建碰撞干涉的检查类组：
-
+            //创建碰撞干涉的检查类组;
             root = TxApplication.ActiveDocument.CollisionRoot;
-            for(int i=0;i<root.PairList.Count;i++)
+            for (int i = 0; i < root.PairList.Count; i++)
             {
                 if (root.PairList[i].Name == "cp1")
                 {
@@ -630,7 +749,7 @@ namespace rrtRobot
             }
 
             cd = new TxCollisionPairCreationData("cp1", collisionSrc, collisionTar, 3.0);
-            if(cd.FirstList.Count==0|| cd.SecondList.Count==0)
+            if (cd.FirstList.Count == 0 || cd.SecondList.Count == 0)
             {
                 TxMessageBox.Show("No collision src or target list are setted up successfully", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -639,7 +758,6 @@ namespace rrtRobot
             cp = root.CreateCollisionPair(cd);
 
             queryParams = new TxCollisionQueryParams();
-
 
             if (rrtconnectCal_ongoing)// 在计算未完成的时候，强行终止目前的计算
             {
@@ -656,8 +774,8 @@ namespace rrtRobot
              * 3. 如果无法达到，且无法避免干涉，则将此焊点移除选择的焊点程序，并放到根目录下；           
              */
 
-             ITxObject selectItem=   TxApplication.ActiveSelection.GetLastPickedItem() as ITxObject;
-            if(selectItem ==null|| selectItem.GetType().Name!="TxWeldOperation")
+            ITxObject selectItem = TxApplication.ActiveSelection.GetLastPickedItem() as ITxObject;
+            if (selectItem == null || selectItem.GetType().Name != "TxWeldOperation")
             {
                 TxMessageBox.Show("Please select the Weld OP firstly before connect!", "Warnning", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -666,7 +784,7 @@ namespace rrtRobot
             //确认operation的根目录下是否存在没有分配的焊点，如果有则确认是否具备机器人的可达性           
             TxOperationRoot txOperationRoot = TxApplication.ActiveDocument.OperationRoot;
             TxTypeFilter opFilter = new TxTypeFilter(typeof(TxWeldLocationOperation));
-            weldTargetOperation=selectItem as TxWeldOperation;
+            weldTargetOperation = selectItem as TxWeldOperation;
             TxObjectList allWeldPointsExist = weldTargetOperation.GetDirectDescendants(opFilter);
 
             if (allWeldPointsExist.Count == 0)
@@ -680,7 +798,7 @@ namespace rrtRobot
             weldOperationSpotAllocate(weldTargetOperation);
             allWeldPointsExist = weldTargetOperation.GetDirectDescendants(opFilter);
 
-            progressbarCount = allWeldPointsExist.Count-1;
+            progressbarCount = allWeldPointsExist.Count - 1;
 
             fullpath = new List<List<point>>();
             node3D_startList = new List<Tuple<Node3D, string>>();
@@ -737,7 +855,7 @@ namespace rrtRobot
 
             try
             {
-                
+
                 for (int i = 0; i < node3D_startList.Count; i++)
                 {
                     if (!rrtconnectCal_ongoing)
@@ -746,17 +864,34 @@ namespace rrtRobot
                     }
 
 
-                   List<point> path = new List<point>();
-                   Node3D node3D_start = node3D_startList[i].Item1;
-                   Node3D node3D_goal = node3D_endList[i].Item1;
-                   if((node3D_startList[i].Item2!= "bypass")&& (node3D_endList[i].Item2 != "bypass")) iterate_Count = 0;
+                    List<point> path = new List<point>();
+                    Node3D node3D_start = node3D_startList[i].Item1;
+                    Node3D node3D_goal = node3D_endList[i].Item1;
+                    if ((node3D_startList[i].Item2 != "bypass") && (node3D_endList[i].Item2 != "bypass"))
+                    {
+
+                        iterate_Count = 0;
+                        if (m_radioButtonX.Checked == true)
+                        {
+                            spotagainstCollisionSrc = 'X';
+                        }
+                        if (m_radioButtonY.Checked == true)
+                        {
+                            spotagainstCollisionSrc = 'Y';
+                        }
+                        if (m_radioButtonZ.Checked == true)
+                        {
+                            spotagainstCollisionSrc = 'Z';
+                        }
+
+                    }
                     TxRobotRRTConnect rrt = new TxRobotRRTConnect();
-                   await rrt.rrt_connect(new point(node3D_start.x, node3D_start.y, node3D_start.z, node3D_start.rx, node3D_start.ry, node3D_start.rz,ToolJointOpening), new point(node3D_goal.x, node3D_goal.y, node3D_goal.z, node3D_goal.rx, node3D_goal.ry, node3D_goal.rz, ToolJointOpening));
+                    await rrt.rrt_connect(new point(node3D_start.x, node3D_start.y, node3D_start.z, node3D_start.rx, node3D_start.ry, node3D_start.rz, ToolJointOpening), new point(node3D_goal.x, node3D_goal.y, node3D_goal.z, node3D_goal.rx, node3D_goal.ry, node3D_goal.rz, ToolJointOpening));
                     /*
                      * 如果迭代次数超过1000，而造成退出，则在退出的起始点和终止点增加一个中点，然后再进行计算
                      */
-                   if (!TxRobotRRTConnect.currentpathdone) //表示当下的计算没有产生合适的路径而退出
-                   {
+                    if (!TxRobotRRTConnect.currentpathdone) //表示当下的计算没有产生合适的路径而退出
+                    {
                         iterate_Count++;
                         /*
                          * 当迭代1000次之后，需要取中间点，之前的算法是取start 点和end 点的中点;
@@ -764,26 +899,23 @@ namespace rrtRobot
                          * 以干涉点为起始点，通过generatePassThroughPoints()函数改变干涉嗲拿的姿态并加入到轨迹中进行运算
                         */
                         point p = new point(0, 0, 0, 0, 0, 0, 0);
-                        point p_start, p_end;
+                        point p_start, p_end, p_start_original, p_end_original;
 
-                        bool crossClossionPoint=TxRobotRRTConnect.isValidforstepCorss(new point(node3D_start.x, node3D_start.y, node3D_start.z, node3D_start.rx, node3D_start.ry, node3D_start.rz, ToolJointOpening), new point(node3D_goal.x, node3D_goal.y, node3D_goal.z, node3D_goal.rx, node3D_goal.ry, node3D_goal.rz, ToolJointOpening),out p);
-
-
-                        p_end = new point((node3D_goal.x+ node3D_start.x)/2,  (node3D_goal.y+ node3D_start.y)/2, (node3D_goal.z+ node3D_start.z) / 2,
+                        p_start_original = new point(node3D_start.x, node3D_start.y, node3D_start.z, node3D_start.rx, node3D_start.ry, node3D_start.rz, ToolJointOpening);
+                        p_end_original = new point(node3D_goal.x, node3D_goal.y, node3D_goal.z, node3D_goal.rx, node3D_goal.ry, node3D_goal.rz, ToolJointOpening);
+                        bool crossClossionPoint = TxRobotRRTConnect.isValidforstepCorss(p_start_original, p_end_original, out p);
+                        p_end = new point((node3D_goal.x + node3D_start.x) / 2, (node3D_goal.y + node3D_start.y) / 2, (node3D_goal.z + node3D_start.z) / 2,
                                  p.rx, p.ry, p.rz, ToolJointOpening);
-
-                        crossClossionPoint = TxRobotRRTConnect.isValidforstepCorss(new point(node3D_goal.x, node3D_goal.y, node3D_goal.z, node3D_goal.rx, node3D_goal.ry, node3D_goal.rz, ToolJointOpening), new point(node3D_start.x, node3D_start.y, node3D_start.z, node3D_start.rx, node3D_start.ry, node3D_start.rz, ToolJointOpening),  out p);
-                       
-
+                        crossClossionPoint = TxRobotRRTConnect.isValidforstepCorss(p_end_original, p_start_original, out p);
                         p_start = new point((node3D_goal.x + node3D_start.x) / 2, (node3D_goal.y + node3D_start.y) / 2, (node3D_goal.z + node3D_start.z) / 2,
                                  p.rx, p.ry, p.rz, ToolJointOpening);
-                        if (!generatePassThroughPoints(ref p_start))
+                        if (!generatePassThroughPoints(ref p_start, true))
                         {
                             int index = 0;
                             string removedWeldName = "";
                             if (node3D_endList[i].Item2 == "bypass")
-                            { 
-                                if(i== node3D_startList.Count-1)
+                            {
+                                if (i == node3D_startList.Count - 1)
                                 {
                                     node3D_endList.Remove(node3D_endList.Last());
                                     node3D_startList.Remove(node3D_startList.Last());
@@ -828,24 +960,27 @@ namespace rrtRobot
 
                             continue;
                         }
-                        if (!generatePassThroughPoints(ref p_end)) p_end = p_start;
-                                                
-                      Node3D p_start_Node = new Node3D(p_start.x, p_start.y, p_start.z, p_start.rx, p_start.ry, p_start.rz);
-                      Node3D p_end_Node = new Node3D(p_end.x, p_end.y, p_end.z, p_end.rx, p_end.ry, p_end.rz);
-                      node3D_startList.Insert(i + 1, Tuple.Create(p_start_Node,"bypass"));
-                      node3D_startList.Insert(i + 2, Tuple.Create(p_end_Node, "bypass"));
-                      node3D_endList.Insert(i, Tuple.Create(p_start_Node, "bypass"));
-                      node3D_endList.Insert(i + 1, Tuple.Create(p_end_Node, "bypass"));
-                      i--;
-                      //progressbarCount = node3D_startList.Count;
-                      continue;
-                   }
-                   path = rrt.path_points_start;
-                   fullpath.Add(path);
-                   TxRobotRRTConnect.currentpathdone = true;// 记录当前的轨迹已经计算结束，无论是正常结束还是手动结束
-                   if (node3D_endList[i].Item2 != "bypass") progressbarNumber++;
-                   PathprogressBar.Value = (int)((PathprogressBar.Maximum * ((double)progressbarNumber / progressbarCount)));
-                   await Task.Delay(500);
+                        if (!generatePassThroughPoints(ref p_end, false)) p_end = p_start;
+
+                        Node3D p_start_Node = new Node3D(p_start.x, p_start.y, p_start.z, p_start.rx, p_start.ry, p_start.rz);
+                        Node3D p_end_Node = new Node3D(p_end.x, p_end.y, p_end.z, p_end.rx, p_end.ry, p_end.rz);
+                        node3D_startList.Insert(i + 1, Tuple.Create(p_start_Node, "bypass"));
+                        node3D_startList.Insert(i + 2, Tuple.Create(p_end_Node, "bypass"));
+                        node3D_endList.Insert(i, Tuple.Create(p_start_Node, "bypass"));
+                        node3D_endList.Insert(i + 1, Tuple.Create(p_end_Node, "bypass"));
+                        i--;
+                        //progressbarCount = node3D_startList.Count;
+                        rrt.Dispose();
+                        continue;
+                    }
+                    path = rrt.path_points_start;
+                    fullpath.Add(path);
+                    rrt.Dispose();
+                    //path.Clear();
+                    TxRobotRRTConnect.currentpathdone = true;// 记录当前的轨迹已经计算结束，无论是正常结束还是手动结束
+                    if (node3D_endList[i].Item2 != "bypass") progressbarNumber++;
+                    PathprogressBar.Value = (int)((PathprogressBar.Maximum * ((double)progressbarNumber / progressbarCount)));
+                    await Task.Delay(500);
 
                 }
 
@@ -875,5 +1010,7 @@ namespace rrtRobot
         {
             spotagainstCollisionSrc = 'Z';
         }
+
+
     }
 }

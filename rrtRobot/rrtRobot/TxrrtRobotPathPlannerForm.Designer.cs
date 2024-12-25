@@ -255,10 +255,10 @@ namespace rrtRobot
         private System.Windows.Forms.Label label2;
         private TxObjComboBoxCtrl m_collisionListPick;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.RadioButton m_radioButtonX;
-        private System.Windows.Forms.RadioButton m_radioButtonY;
-        private System.Windows.Forms.RadioButton m_radioButtonZ;
-        private System.Windows.Forms.Label m_spotDirec;
-        private System.Windows.Forms.GroupBox groupBox3;
+        public System.Windows.Forms.RadioButton m_radioButtonX;
+        public System.Windows.Forms.RadioButton m_radioButtonY;
+        public System.Windows.Forms.RadioButton m_radioButtonZ;
+        public System.Windows.Forms.Label m_spotDirec;
+        public System.Windows.Forms.GroupBox groupBox3;
     }
 }
