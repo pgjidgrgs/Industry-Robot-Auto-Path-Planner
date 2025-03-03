@@ -27,6 +27,7 @@ below is to explain how to use the App to do the path planner:
 2. Collision: The system will consider the gun and Robot as Collision Src, here you need select which is the Collision Target, of course you can select multiple collision target, and all of them will be considerde during calculation;
 3. Spot direction: this is cirtical setup, the app will be add pass point if the rrt connect not calculate path result after 1000 iteration, the direction will decide along which weld spot aix the Robot will escape.
 For example in the snap, all the spots are in front of Robot, and the Robot can be excape the collision target along the X aix according Robot base frame. So here will be select "X";
+-----from version 2.0, the spot direction is removed, since the sofware will calculate the escape direction by itself
 4. select which Op will be calculated;
 5. Click "Path Connect"
 6. When Finish calculated, click "Generate"
