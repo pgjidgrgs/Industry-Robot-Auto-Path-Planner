@@ -289,7 +289,7 @@ namespace rrtRobot
                            );
 
                       
-                        if (TxRobotRRTConnectJoint.isValidforstepCorss(TxrrtRobotPathPlannerForm.mainTxControl, start, end))
+                        if (TxRobotRRTConnectJoint.isValidforstepCorss(TxrrtRobotPathPlannerForm.mainTxControl, start, end,100))
                         {
 
                             while (j != k - 1)

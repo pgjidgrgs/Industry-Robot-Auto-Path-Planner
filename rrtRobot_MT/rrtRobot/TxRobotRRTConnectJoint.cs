@@ -263,19 +263,19 @@ namespace rrtRobot
             return step;
         }
 
-        public bool isValid(Control control, joint step, joint near, bool stepToNear)
+        public bool isValid(Control control, joint step, joint near, bool stepToNear,int threadholdIter)
         {
 
             if (!collisioncheckforSingleJoint(control, ref step)) return false;
             
             if (stepToNear)
             {
-                if (!isValidforstepCorss(control, near, step))
+                if (!isValidforstepCorss(control, near, step, threadholdIter))
                     return false;
             }
             else
             {
-                if (!isValidforstepCorss(control, step, near))
+                if (!isValidforstepCorss(control, step, near, threadholdIter))
                     return false;
             }
 
@@ -330,7 +330,7 @@ namespace rrtRobot
 
         }
 
-        public static bool isValidforstepCorss(Control control, joint step, joint near)  // 将从step 到near中间的干涉点找出并返回
+        public static bool isValidforstepCorss(Control control, joint step, joint near, int threadholdIter)  // 将从step 到near中间的干涉点找出并返回
         {
             List<double> jointschange = TxRobotptpPathCal.calculateJointsChange(step, near, robot);
 
@@ -339,37 +339,52 @@ namespace rrtRobot
             double ptpTime = TxRobotptpPathCal.calculatePTPtime(control, jointschange, robot);
 
             int jointDiv = (int)Math.Abs((result.value / M_PI) * 180);
-            if (jointDiv < 100) jointDiv = 100;
+
+            if(threadholdIter<2000)
+            {
+                if (jointDiv < 100) jointDiv = 100;
+            }
+            else if(threadholdIter >= 2000 && threadholdIter <5000)
+            {
+                if (jointDiv < 75) jointDiv = 75;
+            }
+            else
+            {
+                if (jointDiv < 50) jointDiv = 50;
+            }
+
 
             for (int i = 0; i < jointDiv; i++)
             {
-                TxPoseData robotcurrentPosedata = TxRobotptpPathCal.calCurrentRobotPosedata(control, step, near, robot, (ptpTime / jointDiv) * (i + 1));
 
-                double Gun_open = step.Sever_Gun + (near.Sever_Gun - step.Sever_Gun) * (i + 1) / jointDiv;
-
-                joint p = new joint((double)robotcurrentPosedata.JointValues[0],
-                    (double)robotcurrentPosedata.JointValues[1],
-                    (double)robotcurrentPosedata.JointValues[2],
-                    (double)robotcurrentPosedata.JointValues[3],
-                    (double)robotcurrentPosedata.JointValues[4],
-                    (double)robotcurrentPosedata.JointValues[5],
-                    Gun_open);
-
-                if (!collisioncheckforSingleJoint(control, ref p))
+                using (TxPoseData robotcurrentPosedata = TxRobotptpPathCal.calCurrentRobotPosedata(control, step, near, robot, (ptpTime / jointDiv) * (i + 1)))
                 {
-                    robotcurrentPosedata.Dispose();
-                    jointschange.Clear();
+                    double Gun_open = step.Sever_Gun + (near.Sever_Gun - step.Sever_Gun) * (i + 1) / jointDiv;
 
-                    return false;
+                    joint p = new joint((double)robotcurrentPosedata.JointValues[0],
+                        (double)robotcurrentPosedata.JointValues[1],
+                        (double)robotcurrentPosedata.JointValues[2],
+                        (double)robotcurrentPosedata.JointValues[3],
+                        (double)robotcurrentPosedata.JointValues[4],
+                        (double)robotcurrentPosedata.JointValues[5],
+                        Gun_open);
+
+                    if (!collisioncheckforSingleJoint(control, ref p))
+                    {
+                        
+                        jointschange.Clear();
+
+                        return false;
+                    }
+
                 }
-                robotcurrentPosedata.Dispose();
             }
             jointschange.Clear();
 
             return true;
         }
 
-        public void minimal_cost(Control control, Node3D_joint step)
+        public void minimal_cost(Control control, Node3D_joint step, int threadholdIter)
         {
 
             double new_cost;
@@ -381,7 +396,7 @@ namespace rrtRobot
                 circle_radius_1 = 2 * start_step_size;
                 for (int i = 0; i < nodecount_start; i++)
                 {
-                    if (dist(start_nodes[i].loc, step.loc) < circle_radius_1 && isValid(control, step.loc, start_nodes[i].loc, true))
+                    if (dist(start_nodes[i].loc, step.loc) < circle_radius_1 && isValid(control, step.loc, start_nodes[i].loc, true, IterationCounts))
                     {
                         new_cost = dist(start_nodes[i].loc, step.loc) + start_nodes[i].cost;
                         if (new_cost < min_cost)
@@ -404,7 +419,7 @@ namespace rrtRobot
                 circle_radius_1 = 2 * end_step_size;
                 for (int i = 0; i < nodecount_end; i++)
                 {
-                    if (dist(end_nodes[i].loc, step.loc) < circle_radius_1 && isValid(control, step.loc, end_nodes[i].loc, false))
+                    if (dist(end_nodes[i].loc, step.loc) < circle_radius_1 && isValid(control, step.loc, end_nodes[i].loc, false, IterationCounts))
                     {
                         new_cost = dist(end_nodes[i].loc, step.loc) + end_nodes[i].cost;
                         if (new_cost < min_cost)
@@ -700,6 +715,7 @@ namespace rrtRobot
             }
 
             end_node.loc.Sever_Gun = p_end.Sever_Gun;
+            int threshold = 100;
             while (connected != 1)
             {
                 Application.DoEvents();
@@ -712,7 +728,7 @@ namespace rrtRobot
                 end_step_size = GetRandomDouble(End_Lower_Step_size, End_Upper_Step_size, End_Lower_Step_size, End_Upper_Step_size);
                 sub_state = 0;
                 IterationCounts++;
-
+                if ((IterationCounts / threshold) == 100) return; //如果迭代次数超过15000次则退出
                 if (state == 1)
                 {
 
@@ -763,7 +779,7 @@ namespace rrtRobot
 
                     }
 
-                    if (isValid(control, step_node.loc, start_nodes[index].loc, true) == false)
+                    if (isValid(control, step_node.loc, start_nodes[index].loc, true , IterationCounts) == false)
                     {
 
 
@@ -776,7 +792,7 @@ namespace rrtRobot
                         failCount = 0;
                         step_node.parent = start_nodes[index];
                         step_node.cost = start_nodes[index].cost + start_step_size;
-                        minimal_cost(control, step_node);
+                        minimal_cost(control, step_node, IterationCounts);
 
                         start_nodes.Add(step_node);
 
@@ -794,7 +810,7 @@ namespace rrtRobot
 
                         index = Nearest_Node(state, step_node);
                         if (index < 0) continue;
-                        if (isValid(control, step_node.loc, end_nodes[index].loc, false) || (!rrtconnectCal_ongoing))
+                        if (isValid(control, step_node.loc, end_nodes[index].loc, false, IterationCounts) || (!rrtconnectCal_ongoing))
                         {
 
                             connected = 1;
@@ -824,7 +840,7 @@ namespace rrtRobot
                             sub_step_node.loc.j6 = (end_nodes[index].loc.j6 + step_node.loc.j6) / 2;
                         }
 
-                        if (isValid(control, sub_step_node.loc, end_nodes[index].loc, false) == false)
+                        if (isValid(control, sub_step_node.loc, end_nodes[index].loc, false, IterationCounts) == false)
                         {
 
 
@@ -837,7 +853,7 @@ namespace rrtRobot
                             failCount = 0;
                             sub_step_node.parent = end_nodes[index];
                             sub_step_node.cost = end_nodes[index].cost + end_step_size;
-                            minimal_cost(control, sub_step_node);
+                            minimal_cost(control, sub_step_node, IterationCounts);
 
                             end_nodes.Add(sub_step_node);
 
@@ -895,7 +911,7 @@ namespace rrtRobot
                      
                     }
 
-                    if (isValid(control, step_node.loc, end_nodes[index].loc, false) == false)
+                    if (isValid(control, step_node.loc, end_nodes[index].loc, false, IterationCounts) == false)
                     {
 
 
@@ -908,7 +924,7 @@ namespace rrtRobot
                         failCount = 0;
                         step_node.parent = end_nodes[index];
                         step_node.cost = end_nodes[index].cost + end_step_size;
-                        minimal_cost(control, step_node);
+                        minimal_cost(control, step_node, IterationCounts);
 
                         end_nodes.Add(step_node);
 
@@ -924,7 +940,7 @@ namespace rrtRobot
 
                         index = Nearest_Node(state, step_node);
                         if (index < 0) continue;
-                        if (isValid(control, step_node.loc, start_nodes[index].loc, true) || (!rrtconnectCal_ongoing))
+                        if (isValid(control, step_node.loc, start_nodes[index].loc, true, IterationCounts) || (!rrtconnectCal_ongoing))
                         {
                             connected = 1;
                             sub_state = 1;
@@ -952,7 +968,7 @@ namespace rrtRobot
                         }
 
 
-                        if (isValid(control, sub_step_node.loc, start_nodes[index].loc, true) == false)
+                        if (isValid(control, sub_step_node.loc, start_nodes[index].loc, true, IterationCounts) == false)
                         {
 
 
@@ -966,7 +982,7 @@ namespace rrtRobot
                             start_substate++;
                             sub_step_node.parent = start_nodes[index];
                             sub_step_node.cost = start_nodes[index].cost + start_step_size;
-                            minimal_cost(control, sub_step_node);
+                            minimal_cost(control, sub_step_node , IterationCounts);
 
                             start_nodes.Add(sub_step_node);
 
