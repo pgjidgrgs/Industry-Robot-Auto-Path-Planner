@@ -42,7 +42,7 @@ namespace rrtRobot
             TxRobotExternalAxisData[] externalAxisData = new TxRobotExternalAxisData[1];
             externalAxisData[0] = new TxRobotExternalAxisData();
             externalAxisData[0].Device = robot.MountedTools[0] as TxServoGun;
-            externalAxisData[0].Joint = (robot.MountedTools[0] as TxServoGun).Joints.Last();
+            externalAxisData[0].Joint = (robot.MountedTools[0] as TxServoGun).DrivingJoints.Last() as TxJoint;
             externalAxisData[0].JointValue = p.Gun_Open;
 
             RobFramepostLocation.RobotExternalAxesData = externalAxisData;
