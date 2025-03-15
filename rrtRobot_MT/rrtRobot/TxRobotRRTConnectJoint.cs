@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -19,6 +20,7 @@ namespace rrtRobot
         public double j4 { get; set; }
         public double j5 { get; set; }
         public double j6 { get; set; }
+
 
         public double Sever_Gun { get; set; }
         public joint(double J1, double J2, double J3, double J4, double J5, double J6, double Gun_Opening)
@@ -79,6 +81,7 @@ namespace rrtRobot
         public joint loc;
         public double cost;
         public Node3D_joint parent;
+        public double step_size;
 
 
     }
@@ -129,7 +132,7 @@ namespace rrtRobot
         private int state = 1;
         private int sub_state = 0;
         private const double Max_step_szie = Math.PI / 9;
-        private const double Min_step_szie = Math.PI / 90;
+        private const double Min_step_szie = Math.PI / 1800;
         private double Start_Lower_Step_size = Min_step_szie;
         private double Start_Upper_Step_size = Max_step_szie;
         private double End_Lower_Step_size = Min_step_szie;
@@ -137,8 +140,10 @@ namespace rrtRobot
         private double start_step_size = M_PI / 18;
         private double end_step_size = M_PI / 18;
 
+        private double k_att = 1.0;
+        private double k_rep = 5.0;
+
         private double circle_radius_1 = 20;
-        private double circle_radius_2 = 5.0;
 
         public List<joint> path_points_start = new List<joint>(500);
         private int pathcount_start = 0;
@@ -150,20 +155,15 @@ namespace rrtRobot
         private List<Node3D_joint> end_nodes = new List<Node3D_joint>(10000);
         private int nodecount_end = 0;
         public static List<joint> obs;
-        // 用于记录连续失效点的数量来决定stepsize的大小
-        private int failCount = 0;
-        private int failCountThreshold = 25;
+
         private int IterationCounts = 0;//记录rrtconnect 的迭代次数；
+        private const int stepAdjustCyle = 500;
         public static bool currentpathdone = false;
 
         public double j1Llimit, j2Llimit, j3Llimit, j4Llimit, j5Llimit, j6Llimit;
         public double j1Ulimit, j2Ulimit, j3Ulimit, j4Ulimit, j5Ulimit, j6Ulimit;
-        private const double influenceRadius = Math.PI/9; // 障碍物影响半径
+        private const double influenceRadius = Math.PI / 9; // 障碍物影响半径
 
-
-        private bool[] visited;
-        private const double Eps = 0.52; // 邻域半径  30deg
-        private const int MinPts = 20;   // 密集区域的最小节点数
         public static void logpathGenerateOK(string str)
         {
             StreamWriter sw = new StreamWriter(TxrrtRobotPathPlannerForm.LogfilePath, true);
@@ -185,7 +185,7 @@ namespace rrtRobot
 
             sw.Close();
         }
-        
+
         public double dist(joint p1, joint p2)  // To calculate the distance between two points
         {
 
@@ -193,7 +193,6 @@ namespace rrtRobot
                 + Math.Pow(p2.j4 - p1.j4, 2) + Math.Pow(p2.j5 - p1.j5, 2) + Math.Pow(p2.j6 - p1.j6, 2));
 
         }
-
 
         public int Nearest_Node(int fromstart2end, Node3D_joint rand)
         {
@@ -263,11 +262,11 @@ namespace rrtRobot
             return step;
         }
 
-        public bool isValid(Control control, joint step, joint near, bool stepToNear,int threadholdIter)
+        public bool isValid(Control control, joint step, joint near, bool stepToNear, int threadholdIter)
         {
 
             if (!collisioncheckforSingleJoint(control, ref step)) return false;
-            
+
             if (stepToNear)
             {
                 if (!isValidforstepCorss(control, near, step, threadholdIter))
@@ -340,11 +339,11 @@ namespace rrtRobot
 
             int jointDiv = (int)Math.Abs((result.value / M_PI) * 180);
 
-            if(threadholdIter<2000)
+            if (threadholdIter < 2000)
             {
                 if (jointDiv < 100) jointDiv = 100;
             }
-            else if(threadholdIter >= 2000 && threadholdIter <5000)
+            else if (threadholdIter >= 2000 && threadholdIter < 5000)
             {
                 if (jointDiv < 75) jointDiv = 75;
             }
@@ -371,7 +370,7 @@ namespace rrtRobot
 
                     if (!collisioncheckforSingleJoint(control, ref p))
                     {
-                        
+
                         jointschange.Clear();
 
                         return false;
@@ -497,6 +496,7 @@ namespace rrtRobot
             if (maxValue > UpperLimit) maxValue = UpperLimit;
 
 
+
             return rd.NextDouble() * (maxValue - minValue) + minValue;
         }
 
@@ -560,7 +560,7 @@ namespace rrtRobot
 
             return Normalize(gradient);
         }
-        private double[] ApfCalculateMethod(Control control, joint q,joint nearfromGoalNodes, joint goal, double step_size, List<joint> obsList, double k_att, double k_rep, double d0)
+        private double[] ApfCalculateMethod(Control control, joint q, joint nearfromGoalNodes, joint goal, double step_size, List<joint> obsList, double k_att, double k_rep, double d0)
         {
 
             double[] gradient = new double[6];
@@ -569,9 +569,9 @@ namespace rrtRobot
             //计算吸引势场
             gradient = getAttractiveforceField(q, goal, k_att);
             //计算与对手nodelist里面最近点的吸引势场
-            gradientfromGoalNodes = getAttractiveforceField(q, nearfromGoalNodes, 3*k_att);
+            gradientfromGoalNodes = getAttractiveforceField(q, nearfromGoalNodes, 3 * k_att);
             //计算与obs的排斥力场
-            foreach(var obs in obsList)
+            foreach (var obs in obsList)
             {
 
                 double distance = dist(q, obs);
@@ -579,7 +579,7 @@ namespace rrtRobot
 
                 for (int i = 0; i < 6; i++) // 对位置和旋转分量进行吸引势场计算
                 {
-                    RepulsiveForce[i]+= k_rep * (1 / distance - 1 / d0) * (1 / (distance * distance)) * (q.ToArray()[i] - obs.ToArray()[i])/distance;
+                    RepulsiveForce[i] += k_rep * (1 / distance - 1 / d0) * (1 / (distance * distance)) * (q.ToArray()[i] - obs.ToArray()[i]) / distance;
 
                 }
 
@@ -590,6 +590,7 @@ namespace rrtRobot
             {
 
                 gradient[i] += RepulsiveForce[i] + gradientfromGoalNodes[i];
+
             }
 
 
@@ -659,6 +660,66 @@ namespace rrtRobot
             }
         }
 
+        public double getMaxdistanceinNodeList(List<Node3D_joint> start_nodes, int lastsamples)// 只计算最后10个点
+        {
+            if (start_nodes.Count == 1) return 0;
+
+            double maxdistance = double.MaxValue;
+            int start_index = 0;
+            if (start_nodes.Count <= lastsamples) start_index = 0;
+            else start_index = start_nodes.Count - lastsamples;
+
+            for (int i = start_index; i < start_nodes.Count; i++)
+            {
+                for (int j = i + 1; j < start_nodes.Count; j++)
+                {
+                    double distance = CalculateDistance(start_nodes[i].loc, start_nodes[j].loc);
+                    if (distance < maxdistance) maxdistance = distance;
+
+                }
+
+
+            }
+            return maxdistance;
+
+        }
+
+
+        public double avgValidNodestepsize(List<Node3D_joint> start_nodes, int lastsamples)
+        {
+            double avgvalidnodestepsize = 0;
+
+            if (start_nodes.Count == 1) return Min_step_szie;
+
+            int start_index = 0;
+            if (start_nodes.Count <= lastsamples) start_index = 0;
+            else start_index = start_nodes.Count - lastsamples;
+
+            double sumStepsize = 0;
+
+            for (int i = start_index; i < start_nodes.Count; i++)
+            {
+                sumStepsize += start_nodes[i].step_size;
+
+            }
+
+
+            avgvalidnodestepsize = sumStepsize / (start_nodes.Count - start_index);
+
+            return avgvalidnodestepsize;
+        }
+
+        static double CalculateDistance(joint j1, joint j2)
+        {
+            double sum = 0;
+
+            for (int i = 0; i < 6; i++)
+            {
+                sum += (j1.ToArray()[i] - j2.ToArray()[i]) * (j1.ToArray()[i] - j2.ToArray()[i]);
+            }
+
+            return Math.Sqrt(sum);
+        }
         public void rrt_connectJointPtp(Control control, joint p_start, joint p_end)
         {
             connected = 0;
@@ -715,7 +776,53 @@ namespace rrtRobot
             }
 
             end_node.loc.Sever_Gun = p_end.Sever_Gun;
-            int threshold = 100;
+            int threshold = 2000;
+            double p_end2p_start = CalculateDistance(p_end, p_start);
+            Start_Upper_Step_size = p_end2p_start / 5;
+            if (Start_Upper_Step_size > Max_step_szie) Start_Upper_Step_size = Max_step_szie;
+            End_Upper_Step_size = p_end2p_start / 5;
+            if (End_Upper_Step_size > Max_step_szie) End_Upper_Step_size = Max_step_szie;
+
+
+            Start_Lower_Step_size = p_end2p_start / 100;
+            if (Start_Lower_Step_size < Min_step_szie) Start_Lower_Step_size = Min_step_szie;
+
+            End_Lower_Step_size = p_end2p_start / 100;
+            if (End_Lower_Step_size < Min_step_szie) End_Lower_Step_size = Min_step_szie;
+
+            double start_Lower_Temp_step_size = Start_Lower_Step_size;
+            double end_Lower_Temp_step_size = End_Lower_Step_size;
+
+            double start_Upper_Temp_step_size = Start_Upper_Step_size;
+            double end_Upper_Temp_step_size = End_Upper_Step_size;
+
+            double pre_StartstepAdjustcycleNodecount = 0;
+            double pre_StartstepAdjustcycleNoderatio = 0;
+            double pre_StartstepAdjustcycleNodeMaxdis = 0;
+
+            double pre_EndstepAdjustcycleNodecount = 0;
+            double pre_EndstepAdjustcycleNoderatio = 0;
+            double pre_EndstepAdjustcycleNodeMaxdis = 0;
+
+            double current_StartstepAdjustcycleNodecount = 0;
+            double current_StartstepAdjustcycleNoderatio = 0;
+            double current_StartstepAdjustcycleNodeMaxdis = 0;
+
+            double current_EndstepAdjustcycleNodecount = 0;
+            double current_EndstepAdjustcycleNoderatio = 0;
+            double current_EndstepAdjustcycleNodeMaxdis = 0;
+
+            int start_interationCount = 0;
+            int end_interationCount = 0;
+            bool stepsizeadjusted = false;
+
+            /*
+            TxLocalComponentCreationData creationData1 = new TxLocalComponentCreationData("Pathcurve_start");
+            TxComponent xstart = TxApplication.ActiveDocument.PhysicalRoot.CreateLocalComponent(creationData1);
+
+            TxLocalComponentCreationData creationData2 = new TxLocalComponentCreationData("Pathcurve_end");
+            TxComponent xend = TxApplication.ActiveDocument.PhysicalRoot.CreateLocalComponent(creationData2);
+            */
             while (connected != 1)
             {
                 Application.DoEvents();
@@ -723,15 +830,87 @@ namespace rrtRobot
                 {
                     break;
                 }
+                if (IterationCounts > 2500)
+                {
+                    stepsizeadjusted = true;
+                    if (IterationCounts % stepAdjustCyle == 0)
+                    {
+                        //every 500 iteration cycle run the stepsize adjustmen function
+
+                        // start_step_size;
+                        double temp = avgValidNodestepsize(start_nodes, 20);
+
+                        current_StartstepAdjustcycleNodecount = start_nodes.Count - pre_StartstepAdjustcycleNodecount;
+                        current_StartstepAdjustcycleNoderatio = current_StartstepAdjustcycleNodecount / start_interationCount;
+                        current_StartstepAdjustcycleNodeMaxdis = getMaxdistanceinNodeList(start_nodes, 20);
+
+                        if (temp > start_Lower_Temp_step_size * 5 || //如果平均步长大于阈值 start_Lower_Temp_step_size * 5
+                            (pre_StartstepAdjustcycleNoderatio > 0 && current_StartstepAdjustcycleNoderatio >= pre_StartstepAdjustcycleNoderatio * 2) ||
+                            (pre_StartstepAdjustcycleNodeMaxdis > 0 && current_StartstepAdjustcycleNodeMaxdis >= pre_StartstepAdjustcycleNodeMaxdis * 2)
+                            )
+                        {
+                            Start_Upper_Step_size = start_Upper_Temp_step_size;
+                            // logpathGenerateOK(" start step size enter narrow space");
+
+                        }
+                        else if (temp <= start_Lower_Temp_step_size * 5)
+                        {
+
+                            Start_Upper_Step_size = start_Lower_Temp_step_size * 4;
+
+                            //logpathGenerateOK(" start step size exit narrow space");
+                        }
+
+                        pre_StartstepAdjustcycleNodeMaxdis = current_StartstepAdjustcycleNodeMaxdis;
+                        pre_StartstepAdjustcycleNodecount = current_StartstepAdjustcycleNodecount;
+                        pre_StartstepAdjustcycleNoderatio = current_StartstepAdjustcycleNoderatio;
+
+                        start_interationCount = 0;
+
+                        // end_step_size;
+
+                        temp = avgValidNodestepsize(end_nodes, 20);
+
+
+                        current_EndstepAdjustcycleNodecount = end_nodes.Count - pre_EndstepAdjustcycleNodecount;
+                        current_EndstepAdjustcycleNoderatio = current_EndstepAdjustcycleNodecount / end_interationCount;
+                        current_EndstepAdjustcycleNodeMaxdis = getMaxdistanceinNodeList(end_nodes, 20);
+
+                        if (temp > end_Lower_Temp_step_size * 5 || //如果平均步长大于阈值 End_Lower_Temp_step_size * 5
+                            (pre_EndstepAdjustcycleNoderatio > 0 && current_EndstepAdjustcycleNoderatio >= pre_EndstepAdjustcycleNoderatio * 2) ||
+                            (pre_EndstepAdjustcycleNodeMaxdis > 0 && current_EndstepAdjustcycleNodeMaxdis >= pre_EndstepAdjustcycleNodeMaxdis * 2)
+                            )
+                        {
+                            End_Upper_Step_size = end_Upper_Temp_step_size;
+                            //logpathGenerateOK(" end step size enter narrow space");
+                        }
+                        else if (temp <= end_Lower_Temp_step_size * 5)
+                        {
+
+                            End_Upper_Step_size = end_Lower_Temp_step_size * 4;
+
+                            //logpathGenerateOK(" end step size exit narrow space");
+                        }
+
+                        pre_EndstepAdjustcycleNodeMaxdis = current_EndstepAdjustcycleNodeMaxdis;
+                        pre_EndstepAdjustcycleNodecount = current_EndstepAdjustcycleNodecount;
+                        pre_EndstepAdjustcycleNoderatio = current_EndstepAdjustcycleNoderatio;
+
+                        end_interationCount = 0;
+
+
+                    }
+
+                }
 
                 start_step_size = GetRandomDouble(Start_Lower_Step_size, Start_Upper_Step_size, Start_Lower_Step_size, Start_Upper_Step_size);
                 end_step_size = GetRandomDouble(End_Lower_Step_size, End_Upper_Step_size, End_Lower_Step_size, End_Upper_Step_size);
                 sub_state = 0;
                 IterationCounts++;
-                if ((IterationCounts / threshold) == 100) return; //如果迭代次数超过15000次则退出
+                if ((IterationCounts / threshold) == 10) return; //如果迭代次数超过10000次则退出
                 if (state == 1)
                 {
-
+                    if (stepsizeadjusted) start_interationCount++;
                     double rand_node_gun_open = 0;
 
                     rand_node_gun_open = ToolJointOpening - rd.Next(0, gun_open_splict) * (ToolJointOpening / gun_open_splict);
@@ -765,7 +944,7 @@ namespace rrtRobot
                         (step_node.loc) = step_func(start_nodes[index].loc, rand_node.loc, start_step_size);
 
                         //double[] apf_direction = ArtificialPotentialField(control, step_node.loc, start_nodes[index].loc, end_nodes[index_fromEndNodes].loc, p_end, start_step_size);
-                        double[] apf_direction = ApfCalculateMethod(control, step_node.loc,end_nodes[index_fromEndNodes].loc, p_end, start_step_size,obs,1.0,5.0, influenceRadius);
+                        double[] apf_direction = ApfCalculateMethod(control, step_node.loc, end_nodes[index_fromEndNodes].loc, p_end, start_step_size, obs, k_att, k_rep, influenceRadius);
                         double[] q_rand_array = step_node.loc.ToArray();
                         for (int i = 0; i < 6; i++) // 对位置和旋转分量进行调整
                         {
@@ -775,26 +954,22 @@ namespace rrtRobot
                         joint q_rand_modified = new joint(q_rand_array[0], q_rand_array[1], q_rand_array[2], q_rand_array[3], q_rand_array[4], q_rand_array[5], step_node.loc.Sever_Gun);
 
                         step_node.loc = q_rand_modified;
-                     
+
 
                     }
 
-                    if (isValid(control, step_node.loc, start_nodes[index].loc, true , IterationCounts) == false)
-                    {
-
-
-                        failCount++;
-
-                        continue;
-                    }
+                    if (isValid(control, step_node.loc, start_nodes[index].loc, true, IterationCounts) == false) continue;
                     else
                     {
-                        failCount = 0;
+
                         step_node.parent = start_nodes[index];
                         step_node.cost = start_nodes[index].cost + start_step_size;
                         minimal_cost(control, step_node, IterationCounts);
+                        step_node.step_size = start_step_size;
 
                         start_nodes.Add(step_node);
+
+                        //TxRobotAPIClass.drawingthePathLine(step_node.parent.loc,step_node.loc, xstart, "startNode"+start_nodes.Count.ToString(),robot);
 
                         nodecount_start++;
                     }
@@ -828,34 +1003,20 @@ namespace rrtRobot
 
 
                         }
-
-                        if (dist(sub_step_node.loc, end_nodes[end_nodes.Count - 1].loc) <= 0.01)
-                        {
-                            sub_step_node.loc.j1 = (end_nodes[index].loc.j1 + step_node.loc.j1) / 2;
-                            sub_step_node.loc.j2 = (end_nodes[index].loc.j2 + step_node.loc.j2) / 2;
-                            sub_step_node.loc.j3 = (end_nodes[index].loc.j3 + step_node.loc.j3) / 2;
-
-                            sub_step_node.loc.j4 = (end_nodes[index].loc.j4 + step_node.loc.j4) / 2;
-                            sub_step_node.loc.j5 = (end_nodes[index].loc.j5 + step_node.loc.j5) / 2;
-                            sub_step_node.loc.j6 = (end_nodes[index].loc.j6 + step_node.loc.j6) / 2;
-                        }
-
                         if (isValid(control, sub_step_node.loc, end_nodes[index].loc, false, IterationCounts) == false)
                         {
-
-
                             sub_state = 1;
-                            failCount++;
                             continue;
                         }
                         else
                         {
-                            failCount = 0;
                             sub_step_node.parent = end_nodes[index];
                             sub_step_node.cost = end_nodes[index].cost + end_step_size;
                             minimal_cost(control, sub_step_node, IterationCounts);
+                            sub_step_node.step_size = end_step_size;
 
                             end_nodes.Add(sub_step_node);
+                            //TxRobotAPIClass.drawingthePathLine(sub_step_node.parent.loc, sub_step_node.loc, xend, "endNode" + end_nodes.Count.ToString(), robot);
 
                             nodecount_end++;
                             end_substate++;
@@ -871,6 +1032,7 @@ namespace rrtRobot
                 }
                 if (state == 2)
                 {
+                    if (stepsizeadjusted) end_interationCount++;
                     double rand_node_gun_open = 0;
 
                     rand_node_gun_open = ToolJointOpening - rd.Next(0, gun_open_splict) * (ToolJointOpening / gun_open_splict);
@@ -898,7 +1060,7 @@ namespace rrtRobot
 
 
                         //double[] apf_direction = ArtificialPotentialField(control, step_node.loc, end_nodes[index].loc, start_nodes[index_fromEndNodes].loc, p_start, end_step_size);
-                        double[] apf_direction = ApfCalculateMethod(control, step_node.loc,  start_nodes[index_fromEndNodes].loc, p_start, end_step_size,obs,1.0,5.0,influenceRadius);
+                        double[] apf_direction = ApfCalculateMethod(control, step_node.loc, start_nodes[index_fromEndNodes].loc, p_start, end_step_size, obs, k_att, k_rep, influenceRadius);
                         double[] q_rand_array = step_node.loc.ToArray();
                         for (int i = 0; i < 6; i++) // 对位置和旋转分量进行调整
                         {
@@ -908,25 +1070,19 @@ namespace rrtRobot
                         joint q_rand_modified = new joint(q_rand_array[0], q_rand_array[1], q_rand_array[2], q_rand_array[3], q_rand_array[4], q_rand_array[5], step_node.loc.Sever_Gun);
 
                         step_node.loc = q_rand_modified;
-                     
+
                     }
 
-                    if (isValid(control, step_node.loc, end_nodes[index].loc, false, IterationCounts) == false)
-                    {
-
-
-                        failCount++;
-
-                        continue;
-                    }
+                    if (isValid(control, step_node.loc, end_nodes[index].loc, false, IterationCounts) == false) continue;
                     else
                     {
-                        failCount = 0;
+
                         step_node.parent = end_nodes[index];
                         step_node.cost = end_nodes[index].cost + end_step_size;
                         minimal_cost(control, step_node, IterationCounts);
-
+                        step_node.step_size = end_step_size;
                         end_nodes.Add(step_node);
+                        // TxRobotAPIClass.drawingthePathLine(step_node.parent.loc, step_node.loc, xend, "endNode" + end_nodes.Count.ToString(), robot);
 
                         nodecount_end++;
 
@@ -956,36 +1112,23 @@ namespace rrtRobot
 
                         }
 
-                        if (dist(sub_step_node.loc, start_nodes[start_nodes.Count - 1].loc) <= 0.01)
-                        {
-                            sub_step_node.loc.j1 = (end_nodes[index].loc.j1 + step_node.loc.j1) / 2;
-                            sub_step_node.loc.j2 = (end_nodes[index].loc.j2 + step_node.loc.j2) / 2;
-                            sub_step_node.loc.j3 = (end_nodes[index].loc.j3 + step_node.loc.j3) / 2;
-
-                            sub_step_node.loc.j4 = (end_nodes[index].loc.j4 + step_node.loc.j4) / 2;
-                            sub_step_node.loc.j5 = (end_nodes[index].loc.j5 + step_node.loc.j5) / 2;
-                            sub_step_node.loc.j6 = (end_nodes[index].loc.j6 + step_node.loc.j6) / 2;
-                        }
-
-
                         if (isValid(control, sub_step_node.loc, start_nodes[index].loc, true, IterationCounts) == false)
                         {
 
 
                             sub_state = 1;
-                            failCount++;
                             continue;
                         }
                         else
                         {
-                            failCount = 0;
                             start_substate++;
                             sub_step_node.parent = start_nodes[index];
                             sub_step_node.cost = start_nodes[index].cost + start_step_size;
-                            minimal_cost(control, sub_step_node , IterationCounts);
+                            minimal_cost(control, sub_step_node, IterationCounts);
 
                             start_nodes.Add(sub_step_node);
-
+                            //TxRobotAPIClass.drawingthePathLine(sub_step_node.parent.loc, sub_step_node.loc, xstart, "startNode" + start_nodes.Count.ToString(), robot);
+                            sub_step_node.step_size = start_step_size;
                             nodecount_start++;
                             if (start_substate > 5)
                             {
@@ -1013,3 +1156,6 @@ namespace rrtRobot
         }
     }
 }
+
+
+

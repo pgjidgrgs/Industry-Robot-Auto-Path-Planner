@@ -27,6 +27,7 @@ namespace rrtRobot
         {
 
             TxrrtRobotPathPlannerForm rob_Form = new TxrrtRobotPathPlannerForm();
+            if (!rob_Form.checkLicense()) return;
             rob_Form.InitializeComponent();
             rob_Form.Show();
             rob_Form.Form_Setup();
@@ -41,13 +42,6 @@ namespace rrtRobot
             }
         }
 
-        public override string LargeBitmap
-        {
-
-            get
-            {
-                return StringTable.LargeBitmap;
-            }
-        }
+       
     }
 }

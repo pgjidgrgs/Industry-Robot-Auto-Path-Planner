@@ -88,6 +88,24 @@ namespace rrtRobot
         {
             GenerateLogfile();
         }
+        public bool checkLicense()
+        {
+            // 获取当前时间
+            DateTime currentTime = DateTime.Now;
+
+            // 设定目标时间为2025年3月31日下午4点
+            DateTime targetTime = new DateTime(2025, 3, 17, 8, 0, 0);
+
+            // 比较当前时间与设定时间
+            if (currentTime > targetTime)
+            {
+                // 当前时间超过设定时间
+                return false;
+            }
+
+            return true;
+        }
+
         public void GenerateLogfile()
         {
             // 组合完整的子文件夹路径和文件路径
@@ -121,14 +139,14 @@ namespace rrtRobot
             label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             m_spotDirec.Font = new System.Drawing.Font("Microsoft Sans Serif", 12, System.Drawing.FontStyle.Bold | System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            Robot_Name.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
-            TCP.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
-            Collision_Src.Font = new System.Drawing.Font("Microsoft Sans Serif", 13);
-            groupBox2.Size = new System.Drawing.Size(465, 112);
-            Group_Collision.Size = new System.Drawing.Size(465, 103);
-            groupBox1.Size = new System.Drawing.Size(465, 92);
+            Robot_Name.Font = new System.Drawing.Font("Microsoft Sans Serif", 12);
+            TCP.Font = new System.Drawing.Font("Microsoft Sans Serif", 12);
+            Collision_Src.Font = new System.Drawing.Font("Microsoft Sans Serif", 12);
+            groupBox2.Size = new System.Drawing.Size(544, 122);
+            Group_Collision.Size = new System.Drawing.Size(544, 103);
+            groupBox1.Size = new System.Drawing.Size(544, 92);
            
-            this.Size = new System.Drawing.Size(507, 456);
+            this.Size = new System.Drawing.Size(604, 482);
             this.FormBorderStyle = FormBorderStyle.Fixed3D;
             collisionSrc = new TxObjectList();
 

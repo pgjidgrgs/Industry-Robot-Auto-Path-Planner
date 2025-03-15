@@ -29,3 +29,12 @@ C:\Users\YWANG246\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.dll
 C:\Users\YWANG246\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.pdb
 C:\Users\YWANG246\source\repos\rrtRobot_MT\rrtRobot\bin\Debug\rrtRobot.dll
 C:\Users\YWANG246\source\repos\rrtRobot_MT\rrtRobot\bin\Debug\rrtRobot.pdb
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\bin\Debug\rrtRobot.dll
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\bin\Debug\rrtRobot.pdb
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.csproj.AssemblyReference.cache
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.StringTable.resources
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.TxrrtRobotPathPlannerForm.resources
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.csproj.GenerateResource.cache
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.csproj.CoreCompileInputs.cache
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.dll
+D:\Users\source\repos\rrtRobot_MT\rrtRobot\obj\Debug\rrtRobot.pdb

@@ -40,6 +40,7 @@ namespace rrtRobot
             this.Robot_Name = new System.Windows.Forms.Label();
             this.Collision_Src = new System.Windows.Forms.Label();
             this.Group_Collision = new System.Windows.Forms.GroupBox();
+            this.label4 = new System.Windows.Forms.Label();
             this.m_collisionListPick = new Tecnomatix.Engineering.Ui.TxObjComboBoxCtrl();
             this.label2 = new System.Windows.Forms.Label();
             this.m_pathGenerate = new System.Windows.Forms.Button();
@@ -50,7 +51,6 @@ namespace rrtRobot
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.label1 = new System.Windows.Forms.Label();
             this.m_spotDirec = new System.Windows.Forms.Label();
-            this.label4 = new System.Windows.Forms.Label();
             this.Group_Collision.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
@@ -100,6 +100,11 @@ namespace rrtRobot
             resources.ApplyResources(this.Group_Collision, "Group_Collision");
             this.Group_Collision.Name = "Group_Collision";
             this.Group_Collision.TabStop = false;
+            // 
+            // label4
+            // 
+            resources.ApplyResources(this.label4, "label4");
+            this.label4.Name = "label4";
             // 
             // m_collisionListPick
             // 
@@ -170,11 +175,6 @@ namespace rrtRobot
             // 
             resources.ApplyResources(this.m_spotDirec, "m_spotDirec");
             this.m_spotDirec.Name = "m_spotDirec";
-            // 
-            // label4
-            // 
-            resources.ApplyResources(this.label4, "label4");
-            this.label4.Name = "label4";
             // 
             // TxrrtRobotPathPlannerForm
             // 

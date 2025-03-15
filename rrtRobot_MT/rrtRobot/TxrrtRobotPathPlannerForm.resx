@@ -126,13 +126,13 @@
     <value>Microsoft Sans Serif, 10pt</value>
   </data>
   <data name="m_txTCPFrame.Location" type="System.Drawing.Point, System.Drawing">
-    <value>110, 73</value>
+    <value>170, 81</value>
   </data>
   <data name="m_txTCPFrame.Multiline" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="m_txTCPFrame.Size" type="System.Drawing.Size, System.Drawing">
-    <value>342, 20</value>
+    <value>342, 30</value>
   </data>
   <data name="m_txTCPFrame.TabIndex" type="System.Int32, mscorlib">
     <value>3</value>
@@ -153,10 +153,10 @@
     <value>Microsoft Sans Serif, 10pt</value>
   </data>
   <data name="m_txRobotName.Location" type="System.Drawing.Point, System.Drawing">
-    <value>110, 41</value>
+    <value>170, 45</value>
   </data>
   <data name="m_txRobotName.Size" type="System.Drawing.Size, System.Drawing">
-    <value>342, 25</value>
+    <value>342, 30</value>
   </data>
   <data name="m_txRobotName.TabIndex" type="System.Int32, mscorlib">
     <value>2</value>
@@ -177,13 +177,13 @@
     <value>True</value>
   </data>
   <data name="TCP.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 12pt</value>
+    <value>Microsoft Sans Serif, 11pt</value>
   </data>
   <data name="TCP.Location" type="System.Drawing.Point, System.Drawing">
-    <value>7, 73</value>
+    <value>7, 86</value>
   </data>
   <data name="TCP.Size" type="System.Drawing.Size, System.Drawing">
-    <value>93, 20</value>
+    <value>112, 24</value>
   </data>
   <data name="TCP.TabIndex" type="System.Int32, mscorlib">
     <value>1</value>
@@ -207,13 +207,13 @@
     <value>True</value>
   </data>
   <data name="Robot_Name.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 12pt</value>
+    <value>Microsoft Sans Serif, 11pt</value>
   </data>
   <data name="Robot_Name.Location" type="System.Drawing.Point, System.Drawing">
-    <value>9, 41</value>
+    <value>9, 45</value>
   </data>
   <data name="Robot_Name.Size" type="System.Drawing.Size, System.Drawing">
-    <value>57, 20</value>
+    <value>65, 24</value>
   </data>
   <data name="Robot_Name.TabIndex" type="System.Int32, mscorlib">
     <value>0</value>
@@ -237,13 +237,13 @@
     <value>True</value>
   </data>
   <data name="Collision_Src.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 12pt</value>
+    <value>Microsoft Sans Serif, 11pt</value>
   </data>
   <data name="Collision_Src.Location" type="System.Drawing.Point, System.Drawing">
     <value>3, 56</value>
   </data>
   <data name="Collision_Src.Size" type="System.Drawing.Size, System.Drawing">
-    <value>100, 20</value>
+    <value>118, 24</value>
   </data>
   <data name="Collision_Src.TabIndex" type="System.Int32, mscorlib">
     <value>14</value>
@@ -274,10 +274,10 @@
     <value>NoControl</value>
   </data>
   <data name="label4.Location" type="System.Drawing.Point, System.Drawing">
-    <value>130, 23</value>
+    <value>170, 23</value>
   </data>
   <data name="label4.Size" type="System.Drawing.Size, System.Drawing">
-    <value>173, 15</value>
+    <value>215, 18</value>
   </data>
   <data name="label4.TabIndex" type="System.Int32, mscorlib">
     <value>21</value>
@@ -301,7 +301,7 @@
     <value>Microsoft Sans Serif, 10pt</value>
   </data>
   <data name="m_collisionListPick.Location" type="System.Drawing.Point, System.Drawing">
-    <value>108, 54</value>
+    <value>169, 54</value>
   </data>
   <data name="m_collisionListPick.MinimumSize" type="System.Drawing.Size, System.Drawing">
     <value>0, 21</value>
@@ -334,7 +334,7 @@
     <value>6, 20</value>
   </data>
   <data name="label2.Size" type="System.Drawing.Size, System.Drawing">
-    <value>118, 17</value>
+    <value>140, 20</value>
   </data>
   <data name="label2.TabIndex" type="System.Int32, mscorlib">
     <value>5</value>
@@ -358,10 +358,10 @@
     <value>Microsoft Sans Serif, 10pt, style=Bold, Underline</value>
   </data>
   <data name="Group_Collision.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 126</value>
+    <value>12, 152</value>
   </data>
   <data name="Group_Collision.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 103</value>
+    <value>544, 103</value>
   </data>
   <data name="Group_Collision.TabIndex" type="System.Int32, mscorlib">
     <value>16</value>
@@ -385,10 +385,10 @@
     <value>Microsoft Sans Serif, 12pt, style=Bold</value>
   </data>
   <data name="m_pathGenerate.Location" type="System.Drawing.Point, System.Drawing">
-    <value>377, 360</value>
+    <value>445, 377</value>
   </data>
   <data name="m_pathGenerate.Size" type="System.Drawing.Size, System.Drawing">
-    <value>100, 34</value>
+    <value>111, 35</value>
   </data>
   <data name="m_pathGenerate.TabIndex" type="System.Int32, mscorlib">
     <value>17</value>
@@ -418,10 +418,10 @@
     <value>Microsoft Sans Serif, 12pt, style=Bold</value>
   </data>
   <data name="button1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>224, 360</value>
+    <value>275, 377</value>
   </data>
   <data name="button1.Size" type="System.Drawing.Size, System.Drawing">
-    <value>128, 34</value>
+    <value>153, 35</value>
   </data>
   <data name="button1.TabIndex" type="System.Int32, mscorlib">
     <value>18</value>
@@ -445,10 +445,10 @@
     <value>1</value>
   </data>
   <data name="PathprogressBar.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 47</value>
+    <value>9, 49</value>
   </data>
   <data name="PathprogressBar.Size" type="System.Drawing.Size, System.Drawing">
-    <value>451, 25</value>
+    <value>506, 25</value>
   </data>
   <data name="PathprogressBar.TabIndex" type="System.Int32, mscorlib">
     <value>19</value>
@@ -481,10 +481,10 @@
     <value>Microsoft Sans Serif, 10pt, style=Bold, Underline</value>
   </data>
   <data name="groupBox1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 242</value>
+    <value>12, 261</value>
   </data>
   <data name="groupBox1.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 92</value>
+    <value>544, 92</value>
   </data>
   <data name="groupBox1.TabIndex" type="System.Int32, mscorlib">
     <value>17</value>
@@ -511,7 +511,7 @@
     <value>6, 16</value>
   </data>
   <data name="label3.Size" type="System.Drawing.Size, System.Drawing">
-    <value>163, 17</value>
+    <value>191, 20</value>
   </data>
   <data name="label3.TabIndex" type="System.Int32, mscorlib">
     <value>6</value>
@@ -550,7 +550,7 @@
     <value>12, 13</value>
   </data>
   <data name="groupBox2.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 112</value>
+    <value>544, 127</value>
   </data>
   <data name="groupBox2.TabIndex" type="System.Int32, mscorlib">
     <value>19</value>
@@ -577,7 +577,7 @@
     <value>5, 15</value>
   </data>
   <data name="label1.Size" type="System.Drawing.Size, System.Drawing">
-    <value>100, 17</value>
+    <value>116, 20</value>
   </data>
   <data name="label1.TabIndex" type="System.Int32, mscorlib">
     <value>21</value>
@@ -616,10 +616,10 @@
     <value>True</value>
   </metadata>
   <data name="$this.AutoScaleDimensions" type="System.Drawing.SizeF, System.Drawing">
-    <value>6, 13</value>
+    <value>8, 15</value>
   </data>
   <data name="$this.ClientSize" type="System.Drawing.Size, System.Drawing">
-    <value>491, 417</value>
+    <value>586, 435</value>
   </data>
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -719,6 +719,9 @@
         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 </value>
+  </data>
+  <data name="$this.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
+    <value>4, 3, 4, 3</value>
   </data>
   <data name="$this.Text" xml:space="preserve">
     <value>RobotPathPlanner</value>
